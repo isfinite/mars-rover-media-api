@@ -91,7 +91,6 @@ function setupDb(total) {
 		helpers.output('Requesting latest rover data ...');
 		scrape('http://mars.jpl.nasa.gov/msl/multimedia/raw/?s=', function($) {
 			var items = $('.scroll-content-item').slice(index || 0);
-			console.log(items);
 			if (items.length > 0) {
 				items.each(function() {
 					solSlides.push($(this).text());
