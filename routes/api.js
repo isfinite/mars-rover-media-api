@@ -3,7 +3,7 @@ var Datastore = require('nedb')
 
 var db = new Datastore({ filename: './datastore/data.db', autoload: true });
 
-exports.findMedia = function(req, res) {
+exports.getMedia = function(req, res) {
 	var params = req.url.split('/').slice(1)
 		, paramObj = {}
 		, weather = ['terrestrial_date', 'ls', 'min_temp', 'min_temp_fahrenheit', 'max_temp', 'max_temp_fahrenheit', 'pressure', 'pressure_string', 'abs_humidity', 'wind_speed', 'wind_direction', 'atmo_opacity', 'season', 'sunrise', 'sunset'];
@@ -32,14 +32,15 @@ exports.findMedia = function(req, res) {
 			, results: docs
 		});
 	});
-}
+};
 
-exports.findByType = function(req, res) {
-	console.log(req.params);
-	db.find({ type: req.params.type }, function(err, docs) {
-		res.send({
-			total: docs.length,
-			results: docs
-		});
+exports.getStats = function(req, res) {
+
+	var stats = {};
+
+	db.count({}, function(err, count) {
+		stats.totalImages = count;
+		res.send(stats);
 	});
+
 }

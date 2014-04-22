@@ -8,7 +8,11 @@ var express = require('express')
 
 var apiRouter = express.Router();
 
-apiRouter.get('/*', api.findMedia);
+apiRouter
+	.get('/stats', api.getStats);
+
+apiRouter
+	.get('/*', api.getMedia);
 
 app.use('/api', apiRouter);
 
