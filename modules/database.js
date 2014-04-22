@@ -113,12 +113,16 @@ function setupDb(total) {
 		helpers.output('Requesting latest rover data ...');
 		scrape('http://mars.jpl.nasa.gov/msl/multimedia/raw/?s=', function($) {
 
-			$('.scroll-content-item').each(function(i) {
-				if ($(this).text() == index) {
-					index = i;
-					return;
-				}
-			});
+			// Not every Sol has data so we need to find the element index
+			// for where the database initialization left off
+			if (index) {
+				$('.scroll-content-item').each(function(i) {
+					if ($(this).text() == index) {
+						index = i;
+						return;
+					}
+				});
+			}
 
 			var items = $('.scroll-content-item').slice(index || 0);
 			if (items.length > 0) {
