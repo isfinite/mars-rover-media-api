@@ -1,18 +1,14 @@
 // NPM Modules
-var express = require('express');
+var express = require('express')
+	, api = require('./routes/api.js');
 
 // Custom Modules
-var db = require('./modules/database.js').run();
+//var db = require('./modules/database.js').run();
 
 
 // Initializing methods
 var app = express();
 
+app.get('/api/sol/:sol', api.findBySol);
 
-/*
-var server = app.listen(3000, function() {
-    console.log('Listening on port %d', server.address().port);
-});
-*/
-
-
+app.listen(3000);
