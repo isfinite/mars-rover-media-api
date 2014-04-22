@@ -1,0 +1,13 @@
+{
+  "name": "mars-rover-media-api",
+  "description": "Mars Rover multimedia API",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "express": "^4.0.0",
+    "nedb": "^0.10.5",
+    "request": "^2.34.0",
+    "underscore": "^1.6.0",
+    "cheerio": "^0.15.0"
+  }
+}
