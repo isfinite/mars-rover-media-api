@@ -5,13 +5,6 @@ var Datastore = require('nedb')
 
 var db = new Datastore({ filename: './datastore/data.db', autoload: true });
 
-function pad(num) {
-	var s = num + ''
-		, origLength = s.length;
-    while (s.length < ((4 + origLength) - origLength)) s = '0' + s;
-    return s;
-}
-
 function setupDb(total) {
 
 	var solSlides = []
@@ -47,29 +40,58 @@ function setupDb(total) {
 		scrape('http://mars.jpl.nasa.gov/msl/admin/modules/multimedia/module/inc_ListImages_Raw4.cfm?s=' + parseInt(sol, 10), function($) {
 			helpers.output('Parsing images ...');
 
-			var images = [];
+			var images = []
+				, imageEls = []
+				, jQuery = $
+				, isIncomplete = false;
+
 			$('.RawImageCaption').each(function() {
-				var root = $(this)
-					, imgLink = $(this).closest('td').find('a[href*="?rawid="]')
-					, webImg = imgLink.find('img');
-
-				var data = {
-					sol: sol
-					, url: 'http://mars.jpl.nasa.gov/msl/multimedia/raw/' + imgLink.attr('href').replace('./', '')
-					, created_on: new Date().toISOString()
-					, type: (webImg.attr('width') == 64 || webImg.attr('height') == 64) ? 'thumbnail' : 'full'
-					, camera: webImg.attr('alt').replace('Image taken by ', '')
-					, captured_time: $('.RawImageUTC', root).text().replace('Full Resolution', '').trim()
-					, image: {
-						raw: $('a:contains("Full Resolution")', root).attr('href')
-						, web: webImg.attr('src')
-					}
-				};
-
-				images.push(data);
+				imageEls.push($(this));
 			});
 
-			parseImageData(images);
+			db.find({ sol: sol }, function(err, docs) {
+				if (docs.length > imageEls.length) {
+					helpers.output('Database discrepency found for sol ' + sol);
+				} else if (docs.length < imageEls.length || docs.length <= 0) {
+					isIncomplete = true;
+				}
+
+				function verifyImage() {
+					if (imageEls.length <= 0) {
+						parseImageData(images);
+						return;
+					}
+
+					var img = imageEls.shift()
+						, root = img
+						, imgLink = img.closest('td').find('a[href*="?rawid="]')
+						, webImg = imgLink.find('img')
+						, imgUrl = 'http://mars.jpl.nasa.gov/msl/multimedia/raw/' + imgLink.attr('href').replace('./', '');
+
+					var data = {
+						sol: sol
+						, url: imgUrl
+						, created_on: new Date().toISOString()
+						, type: (webImg.attr('width') == 64 || webImg.attr('height') == 64) ? 'thumbnail' : 'full'
+						, camera: webImg.attr('alt').replace('Image taken by ', '')
+						, captured_time: img.find('.RawImageUTC').text().replace('Full Resolution', '').trim()
+						, image: {
+							raw: img.find('a:contains("Full Resolution")').attr('href')
+							, web: webImg.attr('src')
+						}
+					};
+
+					if (isIncomplete) {
+						db.find({ url: imgUrl }, function(err, docs) {
+							if (docs.length <= 0) images.push(data);
+							verifyImage();
+						});
+					}
+				}
+
+				verifyImage();
+			});
+			
 		});
 	}
 
@@ -90,6 +112,14 @@ function setupDb(total) {
 	function startScraping(index) {
 		helpers.output('Requesting latest rover data ...');
 		scrape('http://mars.jpl.nasa.gov/msl/multimedia/raw/?s=', function($) {
+
+			$('.scroll-content-item').each(function(i) {
+				if ($(this).text() == index) {
+					index = i;
+					return;
+				}
+			});
+
 			var items = $('.scroll-content-item').slice(index || 0);
 			if (items.length > 0) {
 				items.each(function() {
