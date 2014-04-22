@@ -17,7 +17,7 @@ function setupDb(total) {
 	var solSlides = []
 		, weatherData, sol;
 
-	function parseWeather(sol, callback) {
+	function parseWeather(callback) {
 		helpers.output('Requesting weather data ...');
 		request('http://marsweather.ingenology.com/v1/archive/?sol=' + parseInt(sol, 10), callback);
 	}
@@ -43,7 +43,7 @@ function setupDb(total) {
 		});
 	}
 
-	function parseImages(sol, callback) {
+	function parseImages(callback) {
 		scrape('http://mars.jpl.nasa.gov/msl/admin/modules/multimedia/module/inc_ListImages_Raw4.cfm?s=' + parseInt(sol, 10), function($) {
 			helpers.output('Parsing images ...');
 
@@ -79,10 +79,10 @@ function setupDb(total) {
 		sol = solSlides.shift();
 		helpers.output('Scraping ' + sol + ' ...');
 
-		parseWeather(sol, function(err, resp, data) {
+		parseWeather(function(err, resp, data) {
 			data = JSON.parse(data);
 			if (data.count > 0) weatherData = data.results;
-			parseImages(sol);
+			parseImages();
 		});
 	
 	}
@@ -91,6 +91,7 @@ function setupDb(total) {
 		helpers.output('Requesting latest rover data ...');
 		scrape('http://mars.jpl.nasa.gov/msl/multimedia/raw/?s=', function($) {
 			var items = $('.scroll-content-item').slice(index || 0);
+			console.log(items);
 			if (items.length > 0) {
 				items.each(function() {
 					solSlides.push($(this).text());
