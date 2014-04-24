@@ -3,12 +3,57 @@ var Datastore = require('nedb')
 	, helpers = require('../modules/helpers.js')
 	, scrape = require('../modules/scrape.js').scrape;
 
-var db = new Datastore({ filename: './datastore/data.db', autoload: true });
+var db = new Datastore({ filename: './datastore/data', autoload: true });
 
 function setupDb(total) {
 
 	var solSlides = []
 		, weatherData, sol;
+
+	function updateStats(callback) {
+		db.findOne({ stats: true }, function(err, doc) {
+
+			if (!doc) helpers.output('Could not locate the stats doc');
+			if (!callback) helpers.output('Callback required to update stats doc');
+			
+			var updatedDoc = callback(doc);
+
+			if (updatedDoc) {
+				db.update({ _id: doc._id }, updatedDoc, {}, function() {
+					helpers.output('Stats doc updated');
+				});
+			} else {
+				helpers.output('You must return a stats doc for it to be updated');
+			}
+		});
+	}
+
+	function parseStats(callback) {
+		db.findOne({ stats: true }, function(err, doc) {
+			if (!doc) {
+				db.insert({
+					stats: true
+					, cameras: []
+					, sols: []
+					, totals: {
+						media: 0
+						, camera: {}
+					}
+					, averages: {
+						temp: 0
+						, windSpeed: 0
+						, pressure: 0
+						, mediaPerSol: 0
+					}
+				}, function() {
+					helpers.output('Stats doc created');
+					callback();
+				});
+			} else {
+				callback();
+			}
+		});
+	}
 
 	function parseWeather(callback) {
 		helpers.output('Requesting weather data ...');
@@ -31,6 +76,15 @@ function setupDb(total) {
 			helpers.output('Inserting image record into database ... Remaining insertions: ' + images.length);
 
 			db.insert(imgData, function() {
+				updateStats(function(doc) {
+					return {
+						$set: {
+							totals: {
+								media: ++doc.totals.media
+							}
+						}
+					}
+				});
 				parseImageData(images);
 			});
 		});
@@ -101,6 +155,15 @@ function setupDb(total) {
 		sol = solSlides.shift();
 		helpers.output('Scraping ' + sol + ' ...');
 
+		updateStats(function(doc) {
+			if (doc.sols.indexOf(sol) !== -1) return false;
+			return {
+				$push: {
+					sols: sol
+				}
+			}
+		});
+
 		parseWeather(function(err, resp, data) {
 			data = JSON.parse(data);
 			if (data.count > 0) weatherData = data.results;
@@ -136,18 +199,19 @@ function setupDb(total) {
 		});
 	}
 
-	if (total > 0) {
-		db.find({}).sort({ created_on: -1 }).limit(1).exec(function(err, docs) {
-			startScraping(docs[0].sol);
-		});
-	} else {
-		startScraping();
-	}
+	parseStats(function() {
+		if (total > 0) {
+			db.find({}).sort({ created_on: -1 }).limit(1).exec(function(err, docs) {
+				startScraping(docs[0].sol);
+			});
+		} else {
+			startScraping();
+		}
+	});
 
 }
 
-
-function run() {
+exports.run = function() {
 	// Is database setup?
 	db.count({}, function(err, count) {
 		helpers.output('Total items in database: ' + count);
@@ -162,5 +226,3 @@ scrape('http://mars.jpl.nasa.gov/msl/multimedia/raw/?s=', function scrapeCallbac
 	var latestSol = $('.scroll-content-item:last').text();
 });
 */
-
-exports.run = run;

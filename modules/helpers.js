@@ -12,10 +12,4 @@ function pad(num) {
     return s;
 }
 
-exports.toObject = function(arr) {
-	var obj = {};
-	for (var i = 0, len = arr.length; i < len; i++) obj[i] = arr[i];
-	return obj;
-}
-
 exports.output = output;
