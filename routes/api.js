@@ -26,7 +26,7 @@ exports.getMedia = function(req, res) {
 		do {
 			if (sols.indexOf(docs[i].sol) === -1) sols.push(docs[i].sol);
 		} while(++i < len);
-		res.send({
+		res.jsonp({
 			sols: sols.sort()
 			, total: docs.length
 			, results: docs
@@ -40,7 +40,7 @@ exports.getStats = function(req, res) {
 
 	db.count({}, function(err, count) {
 		stats.totalImages = count;
-		res.send(stats);
+		res.jsonp(stats);
 	});
 
 }
