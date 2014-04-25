@@ -166,6 +166,8 @@ function setupDb(total) {
 							if (docs.length <= 0) images.push(data);
 							verifyImage();
 						});
+					} else {
+						parseSlides();
 					}
 				}
 
