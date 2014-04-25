@@ -26,3 +26,5 @@ db.loadDb(function(err) {
 
 	server.listen(3000);
 });
+
+module.exports.io = io;

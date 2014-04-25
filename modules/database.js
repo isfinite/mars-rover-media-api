@@ -2,6 +2,7 @@ var Datastore = require('nedb')
 	, request = require('request')
 	, helpers = require('../modules/helpers.js')
 	, scrape = require('../modules/scrape.js').scrape
+	, server = require('../server.js')
 	, db;
 
 function setupDb(total) {
@@ -19,6 +20,9 @@ function setupDb(total) {
 
 			if (updatedDoc) {
 				db.update({ _id: doc._id }, updatedDoc, {}, function() {
+					db.findOne({ stats: true }, function(err, doc) {
+						server.io.sockets.emit('stats', doc);
+					});
 					helpers.output('Stats doc updated');
 				});
 			} else {
