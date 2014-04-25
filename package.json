@@ -8,6 +8,7 @@
     "nedb": "^0.10.5",
     "request": "^2.34.0",
     "underscore": "^1.6.0",
-    "cheerio": "^0.15.0"
+    "cheerio": "^0.15.0",
+    "socket.io": "^0.9.16"
   }
 }

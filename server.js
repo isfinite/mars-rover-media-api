@@ -1,7 +1,11 @@
 var express = require('express')
 	, app = express()
+	, server = require('http').createServer(app)
+	, io = require('socket.io').listen(server)
 	, helpers = require('./modules/helpers.js')
 	, db = require('./modules/database.js');
+
+io.set('log level', 1);
 
 db.loadDb(function(err) {
 	var api = require('./routes/api.js') // Has to be required here otherwise db wont be loaded
@@ -9,13 +13,16 @@ db.loadDb(function(err) {
 
 	db.run();
 
-	apiRouter
-		.get('/stats', api.getStats);
+	apiRouter.all('*', function(req, res, next) {
+		res.header('Access-Control-Allow-Origin', '*');
+		res.header('Access-Control-Allow-Headers', 'X-Requested-With');
+		next();
+	});
 
-	apiRouter
-		.get('/*', api.getMedia);
-
+	apiRouter.get('/stats', api.getStats);
+	apiRouter.get('/*', api.getMedia);
+		
 	app.use('/api', apiRouter);
 
-	app.listen(3000);
+	server.listen(3000);
 });
