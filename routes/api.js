@@ -2,8 +2,6 @@ var Datastore = require('nedb')
 	, helpers = require('../modules/helpers.js')
 	, db = require('../modules/database.js').getDb();
 
-//var db = new Datastore({ filename: './datastore/data', autoload: true });
-
 exports.getMedia = function(req, res) {
 	var params = req.url.split('/').slice(1)
 		, paramObj = {}
