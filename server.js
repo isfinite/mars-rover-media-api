@@ -1,13 +1,13 @@
 var express = require('express')
 	, app = express()
 	, helpers = require('./modules/helpers.js')
-	, api = require('./routes/api.js')
 	, db = require('./modules/database.js');
 
 db.loadDb(function(err) {
-	db.run();
+	var api = require('./routes/api.js') // Has to be required here otherwise db wont be loaded
+		, apiRouter = express.Router();
 
-	var apiRouter = express.Router();
+	db.run();
 
 	apiRouter
 		.get('/stats', api.getStats);
