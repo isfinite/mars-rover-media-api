@@ -36,14 +36,18 @@ function setupDb(total) {
 					, cameras: []
 					, sols: []
 					, totals: {
-						media: 0
+						media: {
+							full: 0
+							, thumbnail: 0
+						}
 						, camera: {}
 					}
 					, averages: {
-						temp: 0
-						, windSpeed: 0
-						, pressure: 0
-						, mediaPerSol: 0
+						min_temp: []
+						, max_temp: []
+						, windSpeed: []
+						, pressure: []
+						, mediaPerSol: []
 					}
 				}, function() {
 					helpers.output('Stats doc created');
@@ -77,13 +81,25 @@ function setupDb(total) {
 
 			db.insert(imgData, function() {
 				updateStats(function(doc) {
-					return {
-						$set: {
-							totals: {
-								media: ++doc.totals.media
-							}
+					var updateObj = {
+						$set: {}
+						, $push: {}
+					};
+
+					updateObj['$set']['totals.media.' + imgData.type] = ++doc.totals.media[imgData.type]
+
+					if (doc.cameras.indexOf(imgData.camera) === -1) {
+						updateObj['$push'] = {
+							cameras: imgData.camera
 						}
-					}
+					};
+
+					helpers.output(doc);
+
+					var cameraClean = [helpers.cleanString(imgData.camera)];
+					updateObj['$set']['totals.camera.' + cameraClean] = ++doc.totals.camera[cameraClean] || 1;
+
+					return updateObj;
 				});
 				parseImageData(images);
 			});
@@ -109,6 +125,17 @@ function setupDb(total) {
 				} else if (docs.length < imageEls.length || docs.length <= 0) {
 					isIncomplete = true;
 				}
+
+				updateStats(function(doc) {
+					var updateObj = {
+						$addToSet: {}
+					}
+					updateObj['$addToSet']['averages.mediaPerSol'] = {
+						sol: sol
+						, length: imageEls.length
+					}
+					return updateObj;
+				});
 
 				function verifyImage() {
 					if (imageEls.length <= 0) {
@@ -156,9 +183,8 @@ function setupDb(total) {
 		helpers.output('Scraping ' + sol + ' ...');
 
 		updateStats(function(doc) {
-			if (doc.sols.indexOf(sol) !== -1) return false;
 			return {
-				$push: {
+				$addToSet: {
 					sols: sol
 				}
 			}
@@ -167,6 +193,42 @@ function setupDb(total) {
 		parseWeather(function(err, resp, data) {
 			data = JSON.parse(data);
 			if (data.count > 0) weatherData = data.results;
+
+			if (weatherData) {
+				updateStats(function(doc) {
+					var updateObj = {
+						$addToSet: {}
+					}
+					if (weatherData.min_temp) {
+						updateObj['$addToSet']['averages.min_temp'] = {
+							sol: sol
+							, min_temp: weatherData.min_temp
+							, min_temp_fahrenheit: weatherData.min_temp_fahrenheit
+						}
+					}
+					if (weatherData.max_temp) {
+						updateObj['$addToSet']['averages.max_temp'] = {
+							sol: sol
+							, max_temp: weatherData.max_temp
+							, max_temp_fahrenheit: weatherData.max_temp_fahrenheit
+						}
+					}
+					if (weatherData.pressure) {
+						updateObj['$addToSet']['averages.pressure'] = {
+							sol: sol
+							, pressure: weatherData.pressure
+						}
+					}
+					if (weatherData.wind_speed) {
+						updateObj['$addToSet']['averages.wind_speed'] = {
+							sol: sol
+							, wind_speed: weatherData.wind_speed
+						}
+					}
+					return updateObj;
+				});
+			}
+
 			parseImages();
 		});
 	

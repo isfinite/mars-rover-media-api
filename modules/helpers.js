@@ -1,15 +1,17 @@
 var constants = require('../modules/constants.js');
 
-function output(msg) {
+exports.output = function(msg) {
 	if (!constants.DEBUG) return;
 	console.log(msg);
 }
 
-function pad(num) {
+exports.pad = function(num) {
 	var s = num + ''
 		, origLength = s.length;
     while (s.length < ((4 + origLength) - origLength)) s = '0' + s;
     return s;
 }
 
-exports.output = output;
+exports.cleanString = function(str) {
+	return str.replace(/ /g, '_').replace(/:/g, '');
+}
