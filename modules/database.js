@@ -1,9 +1,8 @@
 var Datastore = require('nedb')
 	, request = require('request')
 	, helpers = require('../modules/helpers.js')
-	, scrape = require('../modules/scrape.js').scrape;
-
-var db = new Datastore({ filename: './datastore/data', autoload: true });
+	, scrape = require('../modules/scrape.js').scrape
+	, db;
 
 function setupDb(total) {
 
@@ -94,7 +93,7 @@ function setupDb(total) {
 						}
 					};
 
-					helpers.output(doc);
+					// helpers.output(doc);
 
 					var cameraClean = [helpers.cleanString(imgData.camera)];
 					updateObj['$set']['totals.camera.' + cameraClean] = ++doc.totals.camera[cameraClean] || 1;
@@ -274,14 +273,19 @@ function setupDb(total) {
 }
 
 exports.run = function() {
-	// Is database setup?
 	db.count({}, function(err, count) {
 		helpers.output('Total items in database: ' + count);
 		setupDb(count);
-		//if (count <= 0) setupDb();
 	});
 }
 
+exports.loadDb = function(callback) {
+	db = new Datastore({ filename: process.cwd() + '/datastore/data', autoload: true, onload: callback });
+}
+
+exports.getDb = function() {
+	if (db) return db;
+}
 
 /*
 scrape('http://mars.jpl.nasa.gov/msl/multimedia/raw/?s=', function scrapeCallback($) {
