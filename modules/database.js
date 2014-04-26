@@ -149,30 +149,58 @@ function setupDb(total) {
 					var img = imageEls.shift()
 						, root = img
 						, imgLink = img.closest('td').find('a[href*="?rawid="]')
+						, imgLinkQS = imgLink.attr('href').split('=')[1]
 						, webImg = imgLink.find('img')
-						, imgUrl = 'http://mars.jpl.nasa.gov/msl/multimedia/raw/' + imgLink.attr('href').replace('./', '');
+						, imgUrl = 'http://mars.jpl.nasa.gov/msl/multimedia/raw/' + imgLink.attr('href').replace('./', '')
+						, imgRawUrl = img.find('a:contains("Full Resolution")').attr('href');
 
-					var data = {
-						sol: sol
-						, url: imgUrl
-						, created_on: new Date().toISOString()
-						, type: (webImg.attr('width') == 64 || webImg.attr('height') == 64) ? 'thumbnail' : 'full'
-						, camera: webImg.attr('alt').replace('Image taken by ', '')
-						, captured_time: img.find('.RawImageUTC').text().replace('Full Resolution', '').trim()
-						, image: {
-							raw: img.find('a:contains("Full Resolution")').attr('href')
-							, web: webImg.attr('src')
-						}
-					};
+					helpers.output('Requesting image ' + imgLinkQS + ' | ' + imageEls.length + ' images remaining');
 
-					if (isIncomplete) {
-						db.find({ url: imgUrl }, function(err, docs) {
-							if (docs.length <= 0) images.push(data);
-							verifyImage();
+					var req = require('http').get(imgRawUrl, function(resp) {
+						require('imagesize')(resp, function(err, res) {
+							var data = {
+								sol: sol
+								, url: {
+									img: imgUrl
+									, site: imgLink.attr('href')
+								}
+								, created_on: new Date().toISOString()
+								, type: (webImg.attr('width') == 64 || webImg.attr('height') == 64) ? 'thumbnail' : 'full'
+								, camera: {
+									pretty: webImg.attr('alt').replace('Image taken by ', '')
+									, raw: {
+										instrument: imgLinkQS.slice(0, 2)
+										, config: imgLinkQS.slice(2, 3)
+									}
+								}
+								, width: res.width
+								, height: res.height
+								, filesize: resp.headers['content-length']
+								, sclk: imgLinkQS.slice(4,13)
+								, site: imgLinkQS.slice(18,21)
+								, drive: imgLinkQS.slice(21,25)
+								, seqid: imgLinkQS.slice(25,34)
+								, samp: imgLinkQS.slice(17,18)
+								, captured_time: img.find('.RawImageUTC').text().replace('Full Resolution', '').trim()
+								, image: {
+									raw: imgRawUrl
+									, web: webImg.attr('src')
+								}
+							};
+
+							if (isIncomplete) {
+								db.find({ url: imgUrl }, function(err, docs) {
+									if (docs.length <= 0) images.push(data);
+									verifyImage();
+								});
+							} else {
+								parseSlides();
+							}
+
+							req.abort();
 						});
-					} else {
-						parseSlides();
-					}
+					});
+					
 				}
 
 				verifyImage();
@@ -197,7 +225,7 @@ function setupDb(total) {
 
 		parseWeather(function(err, resp, data) {
 			data = JSON.parse(data);
-			if (data.count > 0) weatherData = data.results;
+			if (data.count > 0) weatherData = data.results.shift();
 
 			if (weatherData) {
 				updateStats(function(doc) {
