@@ -33,7 +33,7 @@ exports.getMedia = function(req, res) {
 						cameras: {}
 					}
 
-				data.cameras[item.camera] = ++data.cameras[item.camera] || 1;
+				data.cameras[item.camera.clean] = ++data.cameras[item.camera.clean] || 1;
 				sols[item.sol] = data;
 			} while (results.length > 0);
 

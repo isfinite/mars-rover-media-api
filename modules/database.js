@@ -36,22 +36,15 @@ function setupDb(total) {
 			if (!doc) {
 				db.insert({
 					stats: true
-					, cameras: []
 					, sols: []
 					, totals: {
 						media: {
 							full: 0
 							, thumbnail: 0
 						}
-						, camera: {}
+						, cameras: {}
 					}
-					, averages: {
-						min_temp: []
-						, max_temp: []
-						, windSpeed: []
-						, pressure: []
-						, mediaPerSol: []
-					}
+					, averages: {}
 				}, function() {
 					helpers.output('Stats doc created');
 					callback();
@@ -67,8 +60,11 @@ function setupDb(total) {
 		request('http://marsweather.ingenology.com/v1/archive/?sol=' + parseInt(sol, 10), callback);
 	}
 
-	function parseImageData(images) {
+	function parseImageData(images, stats) {
 		if (images.length <= 0) {
+			db.update({ stats: true }, { $set: {
+				totals: stats.totals
+			}});
 			parseSlides();
 			return;
 		}
@@ -77,34 +73,16 @@ function setupDb(total) {
 
 		if (weatherData) imgData.weather = weatherData;
 
-		scrape(imgData.url, function($) {
-			imgData.description = $('a[href*="msl-raw-images"]').last().closest('td').text().replace('Full Resolution', '').trim();
+		helpers.output('Inserting image record into database ... Remaining insertions: ' + images.length);
 
-			helpers.output('Inserting image record into database ... Remaining insertions: ' + images.length);
+		db.insert(imgData, function(newDoc) {
+			db.findOne({ stats: true }, function(err, doc) {
+				stats = stats || doc;
 
-			db.insert(imgData, function() {
-				updateStats(function(doc) {
-					var updateObj = {
-						$set: {}
-						, $push: {}
-					};
+				stats.totals.media[imgData.type] = ++stats.totals.media[imgData.type] || 1;
+				stats.totals.cameras[imgData.camera.clean] = ++stats.totals.cameras[imgData.camera.clean] || 1;
 
-					updateObj['$set']['totals.media.' + imgData.type] = ++doc.totals.media[imgData.type]
-
-					if (doc.cameras.indexOf(imgData.camera) === -1) {
-						updateObj['$push'] = {
-							cameras: imgData.camera
-						}
-					};
-
-					// helpers.output(doc);
-
-					var cameraClean = [helpers.cleanString(imgData.camera)];
-					updateObj['$set']['totals.camera.' + cameraClean] = ++doc.totals.camera[cameraClean] || 1;
-
-					return updateObj;
-				});
-				parseImageData(images);
+				parseImageData(images, stats);
 			});
 		});
 	}
@@ -152,40 +130,48 @@ function setupDb(total) {
 						, imgLinkQS = imgLink.attr('href').split('=')[1]
 						, webImg = imgLink.find('img')
 						, imgUrl = 'http://mars.jpl.nasa.gov/msl/multimedia/raw/' + imgLink.attr('href').replace('./', '')
-						, imgRawUrl = img.find('a:contains("Full Resolution")').attr('href');
+						, imgRawUrl = img.find('a:contains("Full Resolution")').attr('href')
+						, cameraType = webImg.attr('alt').replace('Image taken by ', '');
 
 					helpers.output('Requesting image ' + imgLinkQS + ' | ' + imageEls.length + ' images remaining');
 
 					var req = require('http').get(imgRawUrl, function(resp) {
 						require('imagesize')(resp, function(err, res) {
+
+							var parseFilename = imgLinkQS.split('_').length > 2;
+
 							var data = {
 								sol: sol
 								, url: {
-									img: imgUrl
-									, site: imgLink.attr('href')
-								}
-								, created_on: new Date().toISOString()
-								, type: (webImg.attr('width') == 64 || webImg.attr('height') == 64) ? 'thumbnail' : 'full'
-								, camera: {
-									pretty: webImg.attr('alt').replace('Image taken by ', '')
-									, raw: {
-										instrument: imgLinkQS.slice(0, 2)
-										, config: imgLinkQS.slice(2, 3)
-									}
-								}
-								, width: res.width
-								, height: res.height
-								, filesize: resp.headers['content-length']
-								, sclk: imgLinkQS.slice(4,13)
-								, site: imgLinkQS.slice(18,21)
-								, drive: imgLinkQS.slice(21,25)
-								, seqid: imgLinkQS.slice(25,34)
-								, samp: imgLinkQS.slice(17,18)
-								, captured_time: img.find('.RawImageUTC').text().replace('Full Resolution', '').trim()
-								, image: {
-									raw: imgRawUrl
+									site: imgUrl
+									, raw: imgRawUrl
 									, web: webImg.attr('src')
 								}
+								, type: (webImg.attr('width') == 64 || webImg.attr('height') == 64) ? 'thumbnail' : 'full'
+								, camera: {
+									pretty: cameraType
+									, clean: helpers.cleanString(cameraType)
+									, raw: {
+										instrument: parseFilename && imgLinkQS.slice(0, 2) || null
+										, config: parseFilename && imgLinkQS.slice(2, 3) || null
+									}
+								}
+								, properties: {
+									width: res && res.width || null
+									, height: res && res.height || null
+									, filesize: resp && resp.headers && resp.headers['content-length'] || null
+								}
+								, timestamps: {
+									created: new Date().toISOString()
+									, captured: img.find('.RawImageUTC').text().replace('Full Resolution', '').trim()
+								}
+								, sclk: parseFilename && imgLinkQS.slice(4,13) || null
+								, location: {
+									site: parseFilename && imgLinkQS.slice(18,21) || null
+									, drive: parseFilename && imgLinkQS.slice(21,25) || null
+								}
+								, seqid: parseFilename && imgLinkQS.slice(25,34) || null
+								, samp: parseFilename && imgLinkQS.slice(17,18) || null
 							};
 
 							if (isIncomplete) {
@@ -211,7 +197,7 @@ function setupDb(total) {
 
 	function parseSlides() {
 		if (solSlides.length <= 0) return;
-		
+
 		sol = solSlides.shift();
 		helpers.output('Scraping ' + sol + ' ...');
 
@@ -225,38 +211,17 @@ function setupDb(total) {
 
 		parseWeather(function(err, resp, data) {
 			data = JSON.parse(data);
+			
 			if (data.count > 0) weatherData = data.results.shift();
 
 			if (weatherData) {
 				updateStats(function(doc) {
-					var updateObj = {
-						$addToSet: {}
-					}
-					if (weatherData.min_temp) {
-						updateObj['$addToSet']['averages.min_temp'] = {
-							sol: sol
-							, min_temp: weatherData.min_temp
-							, min_temp_fahrenheit: weatherData.min_temp_fahrenheit
-						}
-					}
-					if (weatherData.max_temp) {
-						updateObj['$addToSet']['averages.max_temp'] = {
-							sol: sol
-							, max_temp: weatherData.max_temp
-							, max_temp_fahrenheit: weatherData.max_temp_fahrenheit
-						}
-					}
-					if (weatherData.pressure) {
-						updateObj['$addToSet']['averages.pressure'] = {
-							sol: sol
-							, pressure: weatherData.pressure
-						}
-					}
-					if (weatherData.wind_speed) {
-						updateObj['$addToSet']['averages.wind_speed'] = {
-							sol: sol
-							, wind_speed: weatherData.wind_speed
-						}
+					var updateObj = { $addToSet: {} }
+					for (var k in  weatherData) {
+						if (k === 'terrestrial_date' || k === 'sol' || k === 'ls') continue;
+						var dataToAdd = { sol: sol };
+						dataToAdd[k] = weatherData[k];
+						updateObj['$addToSet']['averages.' + k] = dataToAdd;
 					}
 					return updateObj;
 				});
@@ -296,7 +261,7 @@ function setupDb(total) {
 
 	parseStats(function() {
 		if (total > 0) {
-			db.find({}).sort({ created_on: -1 }).limit(1).exec(function(err, docs) {
+			db.find({ $not: { stats: true }}).sort({ sol: -1 }).limit(1).exec(function(err, docs) {
 				startScraping(docs[0].sol);
 			});
 		} else {
