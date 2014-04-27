@@ -275,6 +275,7 @@ function setupDb(total) {
 	function parseSlides() {
 		if (solSlides.length <= 0) return;
 
+		solSlides.shift();
 		sol = solSlides.shift();
 		helpers.output('Scraping ' + sol + ' ...');
 

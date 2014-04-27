@@ -11,7 +11,7 @@ db.loadDb(function(err) {
 	var api = require('./routes/api.js') // Has to be required here otherwise db wont be loaded
 		, apiRouter = express.Router();
 
-	db.run();
+	// db.run();
 
 	io.sockets.on('connection', function() {
 		db.getDb().findOne({ stats: true }, function(err, doc) {
@@ -25,10 +25,11 @@ db.loadDb(function(err) {
 		next();
 	});
 
+	apiRouter.get('/latest', api.getLatest);
 	apiRouter.get('/stats', api.getStats);
 	apiRouter.get('/*', api.getMedia);
 		
-	app.use('/api', apiRouter);
+	app.use('/v1', apiRouter);
 
 	server.listen(3000);
 });
