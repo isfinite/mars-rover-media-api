@@ -3,7 +3,10 @@ var express = require('express')
 	, server = require('http').createServer(app)
 	, io = require('socket.io').listen(server)
 	, helpers = require('./modules/helpers.js')
-	, db = require('./modules/database.js');
+	, db = require('./modules/database.js')
+	, dotenv = require('dotenv');
+
+dotenv.load();
 
 io.set('log level', 1);
 
@@ -11,7 +14,7 @@ db.loadDb(function(err) {
 	var api = require('./routes/api.js') // Has to be required here otherwise db wont be loaded
 		, apiRouter = express.Router();
 
-	// db.run();
+	db.run();
 
 	io.sockets.on('connection', function() {
 		db.getDb().findOne({ stats: true }, function(err, doc) {
