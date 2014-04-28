@@ -36,13 +36,20 @@ exports.getMedia = function(req, res) {
 				query.sol['$' + k] = qs[k];
 			} else {
 				if (map[k]) {
-					query[map[k]] = qs[k];
+					if (k === 'camera') {
+						query[map[k]] = qs[k];
+					} else {
+						var _qs = (k === 'filesize' || k === 'site' || k === 'drive') ? qs[k] : parseInt(qs[k], 10);
+						query[map[k]] = { $lte: _qs };
+					}
 				} else {
 					query[k] = qs[k];
 				}
 			}
 		}
 	}
+
+	console.log(query)
 
 	db.find(query, function(err, doc) {
 		if (typeof doc === 'undefined') {
