@@ -27,6 +27,8 @@ exports.getMedia = function(req, res) {
 			, max_temp_fahrenheit: 'weather.max_temp_fahrenheit'
 		}
 
+	if (qs.callback) delete qs.callback;
+
 	for (var k in qs) {
 		if (qs[k]) {
 			if (reserved.indexOf(k) !== -1) {
