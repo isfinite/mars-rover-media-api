@@ -25,6 +25,7 @@ db.loadDb(function(err) {
 		next();
 	});
 
+	apiRouter.get('/', api.getRoot);
 	apiRouter.get('/latest', api.getLatest);
 	apiRouter.get('/stats', api.getStats);
 	apiRouter.get('/*', api.getMedia);

@@ -1,7 +1,7 @@
 {
   "name": "mars-rover-media-api",
   "description": "Mars Rover multimedia API",
-  "version": "0.0.1",
+  "version": "0.0.1-3",
   "private": true,
   "subdomain": "mars-rover-media-api",
   "engine": "",

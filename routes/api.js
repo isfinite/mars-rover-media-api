@@ -72,6 +72,13 @@ exports.getLatest = function(req, res) {
 	});
 }
 
+exports.getRoot = function(req, res) {
+	res.jsonp({
+		stats: 'http://mars-rover-media-api/v1/stats'
+		, latest: 'http://mars-rover-media-api/v1/latest'
+	});
+}
+
 exports.getStats = function(req, res) {
 	db.findOne({ stats: true }, function(err, doc) {
 		res.jsonp(doc);
