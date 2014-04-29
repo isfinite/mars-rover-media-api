@@ -1,15 +1,22 @@
-var express = require('express')
-	, app = express()
-	, server = require('http').createServer(app)
-	, io = require('socket.io').listen(server)
-	, helpers = require('./modules/helpers.js')
-	, db = require('./modules/database.js')
+var restify = require('restify')
+	, server = restify.createServer()
+	, socketio = require('socket.io')
+	, io = socketio.listen(server)
+	, helpers = require('./modules/helpers')
+	, db = require('./modules/database/driver')
 	, dotenv = require('dotenv');
 
 dotenv.load();
-
 io.set('log level', 1);
 
+db.loadDatabase(function() {
+	module.exports.server = server;
+	require('./modules/routes').routes();
+
+	server.listen(process.env.PORT);
+});
+
+/*
 db.loadDb(function(err) {
 	var api = require('./routes/api.js') // Has to be required here otherwise db wont be loaded
 		, apiRouter = express.Router();
@@ -35,7 +42,8 @@ db.loadDb(function(err) {
 		
 	app.use('/v1', apiRouter);
 
-	server.listen(3000);
+	server.listen(process.env.PORT);
 });
+*/
 
-module.exports.io = io;
+// module.exports.io = io;
