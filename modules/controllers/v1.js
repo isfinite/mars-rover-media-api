@@ -1,9 +1,15 @@
-var Datastore = require('nedb')
-	, helpers = require('../modules/helpers.js')
-	, db = require('../modules/database.js').getDb();
+var db = require('../database/driver').db
+	, helpers = require('../helpers');
 
-exports.getMedia = function(req, res) {
-	
+exports.getRoot = function(req, res, next) {
+	res.send({
+		stats: 'http://mars-rover-media-api/v1/stats'
+		, latest: 'http://mars-rover-media-api/v1/latest'
+	});
+	return next();
+}
+
+exports.getMedia = function(req, res, next) {
 	var urlParts = require('url').parse(req.url)
 		, path = urlParts.pathname
 		, qs = require('querystring').parse(urlParts.query)
@@ -61,9 +67,9 @@ exports.getMedia = function(req, res) {
 			});
 		}
 	});
-};
+}
 
-exports.getLatest = function(req, res) {
+exports.getLatest = function(req, res, next) {
 	db.find({ $not: { stats: true }}).sort({ sol: -1 }).limit(1).exec(function(err, docs) {
 		db.find({ sol: docs[0].sol }, function(err, doc) {
 			var cameras = {}
@@ -74,20 +80,15 @@ exports.getLatest = function(req, res) {
 				if (!cameras[item.camera.clean]) cameras[item.camera.clean] = item;
 			} while(results.length > 0);
 			
-			res.jsonp(cameras);
+			res.send(cameras);
 		});
 	});
+	return next();
 }
 
-exports.getRoot = function(req, res) {
-	res.jsonp({
-		stats: 'http://mars-rover-media-api/v1/stats'
-		, latest: 'http://mars-rover-media-api/v1/latest'
-	});
-}
-
-exports.getStats = function(req, res) {
+exports.getStats = function(req, res, next) {
 	db.findOne({ stats: true }, function(err, doc) {
-		res.jsonp(doc);
+		res.send(doc);
 	});
+	return next();
 }
