@@ -1,7 +1,7 @@
-var constants = require('../modules/constants.js');
+//var constants = require('../modules/constants.js');
 
 exports.output = function(msg) {
-	if (!constants.DEBUG) return;
+	//if (!constants.DEBUG) return;
 	console.log(msg);
 }
 

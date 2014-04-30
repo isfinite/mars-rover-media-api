@@ -1,5 +1,5 @@
-var server = require('../server').server
-	, v1_controller = require('./controllers/v1');
+var server = require('../../server').server
+	, v1_controller = require('../controllers/v1');
 
 exports.routes = function(db) {
 	server.get({ path: '/', version: ['1.0.0'] }, v1_controller.getRoot);
