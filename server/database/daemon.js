@@ -7,10 +7,14 @@ function getManifest(callback) {
 	});
 }
 
-function getSolManifest(manifest) {
+function getSolManifest(manifest, callback) {
 	req(manifest.catalog_url, function(err, resp, body) {
-		console.log(JSON.parse(body));
+		callback(JSON.parse(body));
 	});
+}
+
+function getWeatherData(sol, callback) {
+	req('http://marsweather.ingenology.com/v1/archive/?sol=' + sol, callback);
 }
 
 exports.run = function() {
@@ -18,7 +22,17 @@ exports.run = function() {
 		var sols = data.sols.slice(0, 1);
 
 		do {
-			getSolManifest(sols.shift());
+			var item = sols.shift();
+			getWeatherData(item.sol, function(err, resp, body) {
+				var weather = JSON.parse(body);
+				getSolManifest(item, function(data) {
+					var images = data.images.slice(0);
+					do {
+						var image = images.shift();
+						console.log(image);
+					} while (images.length > 0);
+				});
+			});
 		} while (sols.length > 0);
 
 	});
