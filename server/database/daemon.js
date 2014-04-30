@@ -66,39 +66,52 @@ exports.run = function() {
 		var sols = data.sols.slice(0)
 			, solsData = [];
 
-		(function processSol() {
-			if (sols.length <= 0) {
-				dbDriver.db.update({ sols: { $exists: true }}, { sols: solsData }, {});
-				return;
-			}
-			var item = sols.shift();
-			if (item.num_images > 0) {
-				getWeatherData(item.sol, function(err, resp, body) {
-					var weather = JSON.parse(body)
-						, solData = new solModel();
+		dbDriver.db.find({ stats: true }, function(err, doc) {
+			var stats = doc.shift();
+			(function processSol() {
+				if (sols.length <= 0) {
+					dbDriver.db.update({ sols: { $exists: true }}, { sols: solsData }, {});
+					dbDriver.db.update({ stats: true }, stats, {});
+					return;
+				}
+				var item = sols.shift();
+				if (item.num_images > 0) {
+					getWeatherData(item.sol, function(err, resp, body) {
+						var weather = JSON.parse(body)
+							, solData = new solModel();
 
-					console.log('Processing sol ... ' + sols.length + ' remaining');
+						console.log('Processing sol ... ' + sols.length + ' remaining');
 
-					solData.sol = item.sol;
-					solData.weather = (weather.count > 0) ? weather : null;
+						solData.sol = item.sol;
+						solData.weather = (weather.count > 0) ? weather : null;
 
-					getSolManifest(item, function(data) {
-						var images = data.images.slice(0);
-						(function processImage() {
-							getImageData(images.shift(), function(img) {
-								console.log('Processing image ... ' + images.length + ' remaining');
-								solData.images.push(img);
-								if (images.length <= 0) {
-									solsData.push(solData);
-									processSol();
-								} else {
-									processImage();
-								}
-							});
-						})();
+						getSolManifest(item, function(data) {
+							var images = data.images.slice(0);
+
+							(function processImage() {
+								getImageData(images.shift(), function(img) {
+									console.log('Processing image ... ' + images.length + ' remaining');
+									
+									// Update global stats
+									stats.totals.media[img.properties.type]++;
+									stats.totals.cameras[img.camera.instrument] = ++stats.totals.cameras[img.camera.instrument] || 1;
+
+									// Insert new image data into current sol images array
+									solData.images.push(img);
+
+
+									if (images.length <= 0) {
+										solsData.push(solData);
+										processSol();
+									} else {
+										processImage();
+									}
+								});
+							})();
+						});
 					});
-				});
-			}
-		})();
+				}
+			})();
+		});
 	});
 }

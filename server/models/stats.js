@@ -1,4 +1,5 @@
 exports.stats = function() {
+	this.stats = true;
 	this.totals = {
 		media: {
 			full: 0
@@ -7,9 +8,5 @@ exports.stats = function() {
 		, cameras: {
 
 		}
-	}
-	
-	this.averages = {
-
 	}
 };
