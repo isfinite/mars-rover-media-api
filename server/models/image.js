@@ -3,7 +3,6 @@ exports.image = function() {
 	this.url = {
 		site: ''
 		, raw: ''
-		, web: ''
 		, label: ''
 	}
 	this.camera = {
