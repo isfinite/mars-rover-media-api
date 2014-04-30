@@ -1,7 +1,8 @@
 var http = require('http')
 	, req = require('request')
 	, imgModel = require('../models/image').image
-	, solModel = require('../models/sol').sol;
+	, solModel = require('../models/sol').sol
+	, dbDriver = require('./driver');
 
 function getManifest(callback) {
 	req('http://mars.jpl.nasa.gov/msl-raw-images/image/image_manifest.json', function(err, resp, body) {
@@ -21,8 +22,10 @@ function getWeatherData(sol, callback) {
 
 function getImageData(image, callback) {
 	var newImage =  new imgModel();
-	require('http').get(image.urlList, function(resp) {
+	var _req = require('http').get(image.urlList, function(resp) {
 		require('imagesize')(resp, function(err, res) {
+			_req.abort();
+
 			newImage.rover = 'msl';
 			newImage.sclk = image.sclk;
 			newImage.attitude = image.attitude;
@@ -60,30 +63,42 @@ function getImageData(image, callback) {
 
 exports.run = function() {
 	getManifest(function(data) {
-		var sols = data.sols.slice(1, 2)
+		var sols = data.sols.slice(0)
 			, solsData = [];
 
-		do {
+		(function processSol() {
+			if (sols.length <= 0) {
+				dbDriver.db.update({ sols: { $exists: true }}, { sols: solsData }, {});
+				return;
+			}
 			var item = sols.shift();
 			if (item.num_images > 0) {
 				getWeatherData(item.sol, function(err, resp, body) {
 					var weather = JSON.parse(body)
 						, solData = new solModel();
 
+					console.log('Processing sol ... ' + sols.length + ' remaining');
+
 					solData.sol = item.sol;
-					solData.weather = weather;
+					solData.weather = (weather.count > 0) ? weather : null;
 
 					getSolManifest(item, function(data) {
 						var images = data.images.slice(0);
-						do {
+						(function processImage() {
 							getImageData(images.shift(), function(img) {
+								console.log('Processing image ... ' + images.length + ' remaining');
 								solData.images.push(img);
+								if (images.length <= 0) {
+									solsData.push(solData);
+									processSol();
+								} else {
+									processImage();
+								}
 							});
-						} while (images.length > 0);
+						})();
 					});
 				});
 			}
-		} while (sols.length > 0);
-
+		})();
 	});
 }
