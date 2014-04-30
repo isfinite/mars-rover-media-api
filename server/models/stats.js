@@ -1,5 +1,5 @@
-exports.stats = {
-	totals: {
+exports.stats = function() {
+	this.totals = {
 		media: {
 			full: 0
 			, thumbnail: 0
@@ -8,7 +8,8 @@ exports.stats = {
 
 		}
 	}
-	, averages: {
+	
+	this.averages = {
 
 	}
 };
