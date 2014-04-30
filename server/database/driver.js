@@ -1,6 +1,7 @@
 var mongojs = require('mongojs')
 	, Datastore = require('nedb')
-	, statsModel = require('../models/stats')
+	, statsModel = require('../models/stats').stats
+	, solsModel = require('../models/sols').sols
 	, db;
 
 function dbCursor(cursor, callback) {
@@ -13,10 +14,10 @@ function dbCursor(cursor, callback) {
 
 function runDatabase() {
 	dbCursor(db.find().sort({ _id: -1 }).limit(1), function(err, docs) {
-		console.log(docs);
 		if (docs.length <= 0) {
-			// No docs exists, insert the stats model
-			db.insert(statsModel);
+			// No docs exists, insert the base models
+			db.insert(new statsModel());
+			db.insert(new solsModel());
 		}
 		require('./daemon').run();
 	});
