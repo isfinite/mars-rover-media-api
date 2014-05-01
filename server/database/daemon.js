@@ -4,22 +4,41 @@ var http = require('http')
 	, solModel = require('../models/sol').sol
 	, dbDriver = require('./driver');
 
-function getManifest(callback) {
-	req('http://mars.jpl.nasa.gov/msl-raw-images/image/image_manifest.json', function(err, resp, body) {
+/**********
+* Get JSON from url
+*
+* @param {Function} function to be called after request is completed
+* @return {Object} Parsed JSON object for the rover manifest
+*
+**********/
+function getJSON(url, callback) {
+	req(url, function(err, resp, body) {
 		callback(JSON.parse(body));
 	});
 }
 
-function getSolManifest(manifest, callback) {
-	req(manifest.catalog_url, function(err, resp, body) {
-		callback(JSON.parse(body));
-	});
-}
-
+/**********
+* Get weather data from MAAS Api
+*
+* @param {String} Sol for which weather data is being requested
+*      - {Function} Function to be called after request is completed
+* @return {Object} Parsed JSON object for the weather data received
+*
+**********/
 function getWeatherData(sol, callback) {
-	req('http://marsweather.ingenology.com/v1/archive/?sol=' + sol, callback);
+	req('http://marsweather.ingenology.com/v1/archive/?sol=' + sol, function(err, resp, body) {
+		callback(JSON.parse(body));
+	});
 }
 
+/**********
+* Gets and parses specific image data
+*
+* @param {Object} Image data to be converted into a new object format
+*      - {Function} Function to be called after request is completed
+* @return {Object} Newly defined image data object
+*
+**********/
 function getImageData(image, callback) {
 	var newImage =  new imgModel();
 	var _req = require('http').get(image.urlList, function(resp) {
@@ -61,10 +80,11 @@ function getImageData(image, callback) {
 	});
 }
 
+///--- Exports
+
 exports.run = function() {
-	getManifest(function(data) {
-		var sols = data.sols.slice(0)
-			, solsData = [];
+	getJSON('http://mars.jpl.nasa.gov/msl-raw-images/image/image_manifest.json', function(data) {
+		var sols = data.sols.slice(0);
 
 		dbDriver.db.find({ stats: true }, function(err, doc) {
 			var stats = doc.shift();
@@ -75,16 +95,15 @@ exports.run = function() {
 				}
 				var item = sols.shift();
 				if (item.num_images > 0) {
-					getWeatherData(item.sol, function(err, resp, body) {
-						var weather = JSON.parse(body)
-							, solData = new solModel();
+					getWeatherData(item.sol, function(weather) {
+						var solData = new solModel();
 
 						console.log('Processing sol ... ' + sols.length + ' remaining');
 
 						solData.sol = item.sol;
 						solData.weather = (weather.count > 0) ? weather : null;
 
-						getSolManifest(item, function(data) {
+						getJSON(item.catalog_url, function(data) {
 							var images = data.images.slice(0);
 
 							(function processImage() {
