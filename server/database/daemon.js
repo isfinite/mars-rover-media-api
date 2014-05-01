@@ -70,7 +70,6 @@ exports.run = function() {
 			var stats = doc.shift();
 			(function processSol() {
 				if (sols.length <= 0) {
-					dbDriver.db.update({ sols: { $exists: true }}, { sols: solsData }, {});
 					dbDriver.db.update({ stats: true }, stats, {});
 					return;
 				}
@@ -101,8 +100,7 @@ exports.run = function() {
 
 
 									if (images.length <= 0) {
-										solsData.push(solData);
-										processSol();
+										dbDriver.db.update({ sols: { $exists: true } }, { $push: { sols: solData } }, {}, processSol);
 									} else {
 										processImage();
 									}
