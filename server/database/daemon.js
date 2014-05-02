@@ -1,13 +1,13 @@
 var http = require('http')
 	, req = require('request')
 	, imgModel = require('../models/image').image
-	, solModel = require('../models/sol').sol
 	, dbDriver = require('./driver');
 
 /**********
 * Get JSON from url
 *
 * @param {Function} function to be called after request is completed
+*
 * @return {Object} Parsed JSON object for the rover manifest
 *
 **********/
@@ -22,6 +22,7 @@ function getJSON(url, callback) {
 *
 * @param {String} Sol for which weather data is being requested
 *      - {Function} Function to be called after request is completed
+*
 * @return {Object} Parsed JSON object for the weather data received
 *
 **********/
@@ -36,6 +37,7 @@ function getWeatherData(sol, callback) {
 *
 * @param {Object} Image data to be converted into a new object format
 *      - {Function} Function to be called after request is completed
+*
 * @return {Object} Newly defined image data object
 *
 **********/
@@ -44,6 +46,9 @@ function getImageData(image, callback) {
 	var _req = require('http').get(image.urlList, function(resp) {
 		require('imagesize')(resp, function(err, res) {
 			_req.abort();
+
+			// Skip this image, it isnt responding with a filesize
+			if (!resp.headers['content-length']) callback();
 
 			newImage.rover = 'msl';
 			newImage.sclk = image.sclk;
@@ -61,8 +66,8 @@ function getImageData(image, callback) {
 			newImage.timestamps.added = image.dateAdded;
 			
 			newImage.properties.type = image.sampleType;
-			newImage.properties.width = res.width;
-			newImage.properties.height = res.height;
+			newImage.properties.width = res && res.width || null;
+			newImage.properties.height = res && res.height || null;
 			newImage.properties.filesize = resp.headers['content-length'];
 
 			newImage.camera.instrument = image.instrument;
@@ -80,55 +85,82 @@ function getImageData(image, callback) {
 	});
 }
 
-///--- Exports
+/**********
+* Parses data for each image in that Sol
+*
+* @param {Object} Sol data from manifest file
+*      - {Function} Function to be called after request is completed
+*
+* @return {void}
+*
+**********/
+function processSolData(item, callback) {
+	getWeatherData(item.sol, function(weather) {
+		getJSON(item.catalog_url, function(data) {
 
-exports.run = function() {
-	getJSON('http://mars.jpl.nasa.gov/msl-raw-images/image/image_manifest.json', function(data) {
-		var sols = data.sols.slice(0);
+			var images = data.images.slice(0)
+				, imageDataToAdd = [];
 
-		dbDriver.db.find({ stats: true }, function(err, doc) {
-			var stats = doc.shift();
-			(function processSol() {
-				if (sols.length <= 0) {
-					dbDriver.db.update({ stats: true }, stats, {});
-					return;
-				}
-				var item = sols.shift();
-				if (item.num_images > 0) {
-					getWeatherData(item.sol, function(weather) {
-						var solData = new solModel();
+			(function processImage() {
 
-						console.log('Processing sol ... ' + sols.length + ' remaining');
+				console.log('Processing image for Sol ' + item.sol + ' ... ' + images.length + ' remaining');
 
-						solData.sol = item.sol;
-						solData.weather = (weather.count > 0) ? weather : null;
+				getImageData(images.shift(), function(img) {
 
-						getJSON(item.catalog_url, function(data) {
-							var images = data.images.slice(0);
+					if (img) imageDataToAdd.push(img);
 
-							(function processImage() {
-								getImageData(images.shift(), function(img) {
-									console.log('Processing image ... ' + images.length + ' remaining');
-									
-									// Update global stats
-									stats.totals.media[img.properties.type]++;
-									stats.totals.cameras[img.camera.instrument] = ++stats.totals.cameras[img.camera.instrument] || 1;
+					if (images.length <= 0) {
+						var solData = {
+							sol: item.sol
+							, weather: (weather.count > 0) ? weather : null
+							, images: imageDataToAdd
+						}
 
-									// Insert new image data into current sol images array
-									solData.images.push(img);
+						dbDriver.db.update({ sol: item.sol }, solData, { upsert: true }, callback);
+					} else {
+						processImage();
+					}
+				});
 
-
-									if (images.length <= 0) {
-										dbDriver.db.update({ sols: { $exists: true } }, { $push: { sols: solData } }, {}, processSol);
-									} else {
-										processImage();
-									}
-								});
-							})();
-						});
-					});
-				}
 			})();
 		});
+	});
+}
+
+///--- Exports
+
+exports.run = function(sol, len) {
+	getJSON(process.env.CURIOSITY_MANIFEST, function(data) {
+		
+		var sols = data.sols.slice(0);
+
+		(function processSol() {
+
+			// No Sols left to process
+			if (sols.length <= 0) {
+				console.log('Finished updating all Sol images');
+				return;
+			}
+			
+			// Retrieve next Sol data from beginning of array
+			var item = sols.shift();
+			
+			// Manifest shows no images for this Sol so skip it
+			if (item.num_images <= 0) {
+				processSol();
+				return;
+			}
+
+			console.log('Processing sol ' + item.sol + ' ... ' + sols.length + ' remaining');
+
+			// Get stored data for this Sol
+			dbDriver.db.findOne({ sol: item.sol }, function(err, doc) {
+				// Test if manifest and db Sol data is out of sync
+				// If out of sync [re]process that Sol data
+				// If db and manifest match skip to next Sol
+				(doc && doc.images.length === item.num_images) ? processSol(): processSolData(item, processSol);
+			});
+
+		})();
 	});
 }
