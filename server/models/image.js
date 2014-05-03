@@ -1,5 +1,4 @@
 exports.image = function() {
-	this.rover = '';
 	this.url = {
 		site: ''
 		, raw: ''
