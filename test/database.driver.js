@@ -1,4 +1,4 @@
-var driver = require('../server/database/driver')
+var driver = require('../server/config/driver')
 	, dotenv = require('dotenv').load();
 
 ///--- Tests
