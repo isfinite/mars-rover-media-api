@@ -1,5 +1,4 @@
-var db = require('../database/driver').db
-	, helpers = require('../config/helpers');
+var db = require('../config/driver').db;
 
 exports.getRoot = function(req, res, next) {
 	res.send({
