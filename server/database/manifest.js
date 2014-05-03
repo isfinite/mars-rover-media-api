@@ -2,7 +2,7 @@ var req = require('request')
 	, cheerio = require('cheerio')
 	, util = require('../config/util')
 	, imgModel = require('../models/image').image
-	, env = require('dotenv').load();
+	, dotenv = require('dotenv').load();
 
 var camerasRaw = {
 	'F': 'FHAZ'
@@ -106,7 +106,14 @@ function getAllImages(images, urls, sol, callback) {
 	});
 }
 
-(function buildRoverManifest(rovers) {
+/**
+* Build manifests for rovers
+*
+* @method buildRoverManifest
+* @param {Array} List of rovers that need manifests built
+* @return {void}
+*/
+function buildRoverManifest(rovers) {
 	if (rovers.length <= 0) return;
 
 	var rover = rovers.shift()
@@ -151,4 +158,10 @@ function getAllImages(images, urls, sol, callback) {
 			});
 		})();
 	});
-})(['opportunity', 'spirit']);
+}
+
+///--- Exports
+
+exports.run = function() {
+	buildRoverManifest(['opportunity', 'spirit']);
+}
