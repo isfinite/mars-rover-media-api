@@ -3,44 +3,41 @@ var http = require('http')
 	, imgModel = require('../models/image').image
 	, dbDriver = require('./driver');
 
-/**********
+/**
 * Get JSON from url
 *
+* @method getJSON
 * @param {Function} function to be called after request is completed
-*
 * @return {Object} Parsed JSON object for the rover manifest
-*
-**********/
+*/
 function getJSON(url, callback) {
 	req(url, function(err, resp, body) {
 		callback(JSON.parse(body));
 	});
 }
 
-/**********
+/**
 * Get weather data from MAAS Api
 *
+* @method getWeatherData
 * @param {String} Sol for which weather data is being requested
-*      - {Function} Function to be called after request is completed
-*
+* @param {Function} Function to be called after request is completed
 * @return {Object} Parsed JSON object for the weather data received
-*
-**********/
+*/
 function getWeatherData(sol, callback) {
 	req('http://marsweather.ingenology.com/v1/archive/?sol=' + sol, function(err, resp, body) {
 		callback(JSON.parse(body));
 	});
 }
 
-/**********
+/**
 * Gets and parses specific image data
 *
+* @method getImageData
 * @param {Object} Image data to be converted into a new object format
-*      - {Function} Function to be called after request is completed
-*
+* @param {Function} Function to be called after request is completed
 * @return {Object} Newly defined image data object
-*
-**********/
+*/
 function getImageData(image, callback) {
 	var newImage =  new imgModel();
 	var _req = require('http').get(image.urlList, function(resp) {
@@ -85,15 +82,14 @@ function getImageData(image, callback) {
 	});
 }
 
-/**********
+/**
 * Parses data for each image in that Sol
 *
+* @method processSolData
 * @param {Object} Sol data from manifest file
-*      - {Function} Function to be called after request is completed
-*
+* @param {Function} Function to be called after request is completed
 * @return {void}
-*
-**********/
+*/
 function processSolData(item, callback) {
 	getWeatherData(item.sol, function(weather) {
 		getJSON(item.catalog_url, function(data) {
