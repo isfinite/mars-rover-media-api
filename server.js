@@ -2,9 +2,8 @@ var restify = require('restify')
 	, server = restify.createServer()
 	, socketio = require('socket.io')
 	, io = socketio.listen(server)
-	, dotenv = require('dotenv');
+	, dotenv = require('dotenv').load();
 
-dotenv.load();
 io.set('log level', 1);
 require('./server/database/driver').loadDatabase();
 module.exports.server = server;
