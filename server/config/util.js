@@ -3,6 +3,10 @@
 var fs = require('fs')
 	, path = require('path');
 
+exports.log = function() {
+	if (process.env.NOISY) console.log.apply(this, arguments);
+}
+
 exports.pad = function(originalNum, width, padChar) {
 	var numAsString = originalNum.toString();
 	
