@@ -1,5 +1,4 @@
-Mars Rover Media API (MRMA)
-[![Build Status](https://travis-ci.org/isfinite/mars-rover-media-api.png)](https://travis-ci.org/isfinite/mars-rover-media-api)
+Mars Rover Media API (MRMA) [![Build Status](https://travis-ci.org/isfinite/mars-rover-media-api.png)](https://travis-ci.org/isfinite/mars-rover-media-api)
 ====================
 
 The Mars Rover Media API (MRMA) is an open-source REST API built on top of node.js and the restify framework. In addition, it uses NeDB for localhost filesystem database storage or alternatively MongoDB for a stored solution. MRMA gathers data from the rover manifests along with a variety of other sources and compiles them together to provide a rich data API for the images currently being gathered by the rovers.
