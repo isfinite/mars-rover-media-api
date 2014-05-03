@@ -5,9 +5,19 @@ var restify = require('restify')
 	, dotenv = require('dotenv').load();
 
 io.set('log level', 1);
-require('./server/database/driver').loadDatabase();
-module.exports.server = server;
-require('./server/config/routes').routes();
+
+require('./server/config/driver').loadDatabase(function() {
+
+	module.exports.server = server;
+	require('./server/config/routes').routes();
+
+	require('./server/config/daemon').run([
+		{ name: 'opportunity', type: 'scrape' }
+		, { name: 'spirit', type: 'scrape' }
+		, { name: 'curiosity', type: 'manifest' }
+	]);
+
+});
 
 server.listen(process.env.PORT);
 
