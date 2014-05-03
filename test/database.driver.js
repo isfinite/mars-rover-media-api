@@ -4,12 +4,16 @@ var driver = require('../server/database/driver')
 ///--- Tests
 
 exports.loadMongoDB = function(test) {
-	test.ok(process.env.DB_URL, 'MongoDB loaded');
+	if (process.env.DB_URL) {
+		test.ok(process.env.DB_URL, 'MongoDB loaded');
 
-	driver.loadDatabase(function() {
-		test.ok(driver.db, 'DB added to module exports');
+		driver.loadDatabase(function() {
+			test.ok(driver.db, 'DB added to module exports');
+			test.done();
+		});
+	} else {
 		test.done();
-	});
+	}
 }
 
 exports.loadNeDB = {
