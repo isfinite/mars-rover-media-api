@@ -77,11 +77,8 @@ exports.getLatest = function(req, res, next) {
 }
 
 exports.getStats = function(req, res, next) {
-	db.aggregate([
-		{ $unwind: '$images' }
-		, { $group: { _id: null, total: { $sum: 1 } }}
-	], function(err, doc) {
-		res.send(doc.shift());
+	require('../models/stats').stats(function(data) {
+		res.send(data);
 	});
 
 	return next();
