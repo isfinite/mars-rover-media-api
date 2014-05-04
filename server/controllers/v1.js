@@ -69,25 +69,20 @@ exports.getMedia = function(req, res, next) {
 }
 
 exports.getLatest = function(req, res, next) {
-	db.find({ $not: { stats: true }}).sort({ sol: -1 }).limit(1).exec(function(err, docs) {
-		db.find({ sol: docs[0].sol }, function(err, doc) {
-			var cameras = {}
-				, results = doc.slice(0);
-
-			do {
-				var item = results.shift();
-				if (!cameras[item.camera.clean]) cameras[item.camera.clean] = item;
-			} while(results.length > 0);
-			
-			res.send(cameras);
-		});
+	db.find({}).sort({ sol: -1 }).limit(1, function(err, doc) {
+		res.send(doc.shift());
 	});
+
 	return next();
 }
 
 exports.getStats = function(req, res, next) {
-	db.findOne({ stats: true }, function(err, doc) {
-		res.send(doc);
+	db.aggregate([
+		{ $unwind: '$images' }
+		, { $group: { _id: null, total: { $sum: 1 } }}
+	], function(err, doc) {
+		res.send(doc.shift());
 	});
+
 	return next();
 }
