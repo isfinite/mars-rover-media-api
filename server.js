@@ -17,15 +17,13 @@ require('./server/config/driver').loadDatabase(function() {
 		, { name: 'curiosity', type: 'manifest' }
 	]);
 
+	io.sockets.on('connection', function() {
+		require('./server/models/stats').stats(function(data) {
+			io.sockets.emit('stats', data);
+		});
+	});
+	module.exports.io = io;
+
 });
 
 server.listen(process.env.PORT);
-
-/*
-io.sockets.on('connection', function() {
-	db.getDb().findOne({ stats: true }, function(err, doc) {
-		io.sockets.emit('stats', doc);
-	});
-});
-module.exports.io = io;
-*/
