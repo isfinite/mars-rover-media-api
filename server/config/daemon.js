@@ -3,6 +3,7 @@ var http = require('http')
 	, dbDriver = require('../config/driver')
 	, cheerio = require('cheerio')
 	, util = require('../config/util')
+	, server = require('../../server')
 	, camerasRaw;
 
 /**
@@ -197,6 +198,10 @@ function getAllImages(images, urls, sol, callback) {
 
 		util.log('Processing url ' + url);
 
+		require('../models/stats').stats(function(data) {
+			server.io.sockets.emit('stats', data);
+		});
+
 		var imgElements = cheerio.load(body)('a[href*="' + resp.req._header.match(/\d+/g).shift() + '/"]').toArray();
 
 		(function parseImageData() {
@@ -309,6 +314,13 @@ function buildRoverManifest(rover, callback) {
 	});
 }
 
+/**
+* Determines which methods to use based on the rover type
+*
+* @method parseRoverData
+* @param {Array} Array of rover object data
+* @return {void}
+*/
 function parseRoverData(rovers) {
 	if (rovers.length <= 0) {
 		util.log('Finished parsing data for all rovers');
