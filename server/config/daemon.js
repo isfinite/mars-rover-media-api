@@ -209,11 +209,11 @@ function getAllImages(images, urls, sol, callback) {
 				, img = {}
 				, filenameParts = element.attribs.href.split('/').pop().split('.')
 				, filename = { file: filenameParts.shift(), ext: '.' + filenameParts.shift() }
-				, roverCode = filename.file.substr(0, 1)
+				, roverCode = filename.file.substr(0, 1) >> 0
 				, cameraIdent = filename.file.substr(1, 1)
 				, rootUrl = process.env.ROVER_URL + roverCode + '/' + cameraIdent.toLowerCase() + '/' + util.pad(sol, 3) + '/' + filename.file;
 
-			img.rover = (roverCode === 1) ? 'Opportunity' : 'Spirit';
+			img.rover = (roverCode === 1) ? 'opportunity' : 'spirit';
 
 			// Camera name + camera eye
 			img.camera = {
