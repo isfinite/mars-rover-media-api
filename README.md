@@ -37,7 +37,6 @@ Show all the images in Sols 600 - 615 with pressure less than 1000 and a maximum
 
 * More accurate location data for each image
 * Export result set to CSV option
-* Adding data for Odyssey
 
 ## License
 
