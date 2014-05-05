@@ -103,7 +103,8 @@ function processSolData(item, callback) {
 
 					if (images.length <= 0) {
 						dbDriver.db.update({
-							sol: item.sol 
+							rover: 'curiosity'
+							, sol: item.sol 
 						}
 						, {
 							sol: item.sol
@@ -112,6 +113,7 @@ function processSolData(item, callback) {
 						}
 						, {
 							upsert: true
+							, safe: true
 						}
 						, callback);
 					} else {
@@ -277,37 +279,36 @@ function buildRoverManifest(rover, callback) {
 			, idx = 0;
 
 		dbDriver.db.find({ rover: rover }).sort({ sol: -1 }).limit(1, function(err, manifest) {
-			(function processSol() {
+			(function processSol(err) {
+				if (err) util.log(err);
+
 				if (allSols.length <= 0) {
-					callback(rovers);
+					callback();
 					return;
 				};
 
 				allSols.shift();
 				idx = latest_sol - allSols.length;
-
-				if (idx <= (manifest[0] && manifest[0].sol || 0)) {
-					util.log('Skipping sol %d', idx);
-					processSol();
-					return;
-				}
-
-				util.log('Processing Sol %d ... %d remaining', idx, allSols.length);
-
-				getAllImages([], getCameraUrls(rover, idx), idx, function(images) {
-					dbDriver.db.update({
-						sol: idx
+				
+				dbDriver.db.findOne({ rover: rover, sol: idx}, function(err, doc) {
+					if (doc || idx > (manifest[0] && manifest[0].sol)) {
+						util.log('Skipping sol %d', idx);
+						processSol();
+						return;
 					}
-					, {
-						sol: idx
-						, rover: rover
-						, weather: null
-						, images: images
-					}
-					, {
-						upsert: true
-					}
-					, processSol);
+
+					util.log('Processing Sol %d ... %d remaining', idx, allSols.length);
+
+					getAllImages([], getCameraUrls(rover, idx), idx, function(images) {
+						dbDriver.db.insert({
+							sol: idx
+							, rover: rover
+							, weather: null
+							, images: images
+						}
+						, { safe: true }
+						, processSol);
+					});
 				});
 			})();
 		});
