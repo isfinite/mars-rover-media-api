@@ -116,6 +116,10 @@ function processSolData(item, callback) {
 							, safe: true
 						}
 						, callback);
+
+						require('../models/stats').stats(function(data) {
+							server.io.sockets.emit('stats', data);
+						});
 					} else {
 						processImage();
 					}
