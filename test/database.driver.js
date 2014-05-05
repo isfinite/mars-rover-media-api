@@ -3,7 +3,7 @@ var driver = require('../server/config/driver')
 
 ///--- Tests
 
-exports.loadMongoDB = function(test) {
+module.exports.loadMongoDB = function(test) {
 	if (process.env.DB_URL) {
 		test.ok(process.env.DB_URL, 'MongoDB loaded');
 
@@ -16,7 +16,7 @@ exports.loadMongoDB = function(test) {
 	}
 }
 
-exports.loadNeDB = {
+module.exports.loadNeDB = {
 	setUp: function(callback) {
 		delete process.env.DB_URL;
 		callback();

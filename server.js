@@ -22,8 +22,9 @@ require('./server/config/driver').loadDatabase(function() {
 			io.sockets.emit('stats', data);
 		});
 	});
-	module.exports.io = io;
 
 });
 
 server.listen(process.env.PORT);
+
+module.exports.io = io;

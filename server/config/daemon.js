@@ -347,7 +347,7 @@ function parseRoverData(rovers) {
 
 ///--- Exports
 
-exports.run = function(rovers) {
+module.exports.run = function(rovers) {
 	if (dbDriver.db) {
 		parseRoverData(rovers);
 	} else {

@@ -3,11 +3,11 @@
 var fs = require('fs')
 	, path = require('path');
 
-exports.log = function() {
+module.exports.log = function() {
 	if (process.env.NOISY) console.log.apply(this, arguments);
 }
 
-exports.pad = function(originalNum, width, padChar) {
+module.exports.pad = function(originalNum, width, padChar) {
 	var numAsString = originalNum.toString();
 	
 	// Return originalNum since its already at width
@@ -16,7 +16,7 @@ exports.pad = function(originalNum, width, padChar) {
 	return new Array(++width - numAsString.length).join(padChar || 0) + numAsString;
 }
 
-exports.walk = function(modulesPath, excludeDir, callback) {
+module.exports.walk = function(modulesPath, excludeDir, callback) {
 	fs.readdirSync(modulesPath).forEach(function(file) {
 		var newPath = path.join(modulesPath, file)
 			, stat = fs.statSync(newPath);
