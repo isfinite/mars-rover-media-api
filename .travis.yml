@@ -2,6 +2,7 @@ language: node_js
 node_js:
 - 0.1
 - 0.11
+after_script: NODE_ENV=test istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage
 env:
   global:
     secure: Hiq4/1Q5wc1T+Q0/OUO4vGjDlp0JIgpNMshJLjQ7kPiI91nKWgQ8crTfm5yntbt4/g7mcDDK87Pqm8RMFVeVKGYD2tcswc01tn9d2MWKLR830mx9ys8fB5cwiebzZD/GaRjN8VMgnYsiVk+5xNboccuYqckG8EelrqcJp6NI6dM=
