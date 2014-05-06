@@ -6,7 +6,7 @@ var restify = require('restify')
 
 io.set('log level', 1);
 
-require('./server/config/driver').loadDatabase(function() {
+require('./server/config/driver').load(function() {
 
 	module.exports.server = server;
 	require('./server/config/routes').routes();
