@@ -1,38 +1,30 @@
-var express = require('express')
-	, app = express()
-	, server = require('http').createServer(app)
-	, io = require('socket.io').listen(server)
-	, helpers = require('./modules/helpers.js')
-	, db = require('./modules/database.js');
+var restify = require('restify')
+	, server = restify.createServer()
+	, socketio = require('socket.io')
+	, io = socketio.listen(server)
+	, dotenv = require('dotenv').load();
 
 io.set('log level', 1);
 
-db.loadDb(function(err) {
-	var api = require('./routes/api.js') // Has to be required here otherwise db wont be loaded
-		, apiRouter = express.Router();
+require('./server/config/driver').load(function() {
 
-	// db.run();
+	module.exports.server = server;
+	require('./server/config/routes').routes();
+
+	require('./server/config/daemon').run([
+		{ name: 'opportunity', type: 'scrape' }
+		, { name: 'spirit', type: 'scrape' }
+		, { name: 'curiosity', type: 'manifest' }
+	]);
 
 	io.sockets.on('connection', function() {
-		db.getDb().findOne({ stats: true }, function(err, doc) {
-			io.sockets.emit('stats', doc);
+		require('./server/models/stats').get(function(data) {
+			io.sockets.emit('stats', data);
 		});
 	});
 
-	apiRouter.all('*', function(req, res, next) {
-		res.header('Access-Control-Allow-Origin', '*');
-		res.header('Access-Control-Allow-Headers', 'X-Requested-With');
-		next();
-	});
-
-	apiRouter.get('/', api.getRoot);
-	apiRouter.get('/latest', api.getLatest);
-	apiRouter.get('/stats', api.getStats);
-	apiRouter.get('/*', api.getMedia);
-		
-	app.use('/v1', apiRouter);
-
-	server.listen(3000);
 });
+
+server.listen(process.env.PORT);
 
 module.exports.io = io;
