@@ -4,6 +4,7 @@ var http = require('http')
 	, cheerio = require('cheerio')
 	, util = require('../config/util')
 	, server = require('../../server')
+	, stats = require('../models/stats')
 	, camerasRaw;
 
 /**
@@ -103,11 +104,12 @@ function processSolData(item, callback) {
 
 					if (images.length <= 0) {
 						dbDriver.db.update({
-							rover: 'curiosity'
-							, sol: item.sol 
+							sol: item.sol
+							, rover: 'curiosity'
 						}
 						, {
 							sol: item.sol
+							, rover: 'curiosity'
 							, weather: (weather.count > 0) ? weather : null
 							, images: imageDataToAdd
 						}
@@ -117,7 +119,7 @@ function processSolData(item, callback) {
 						}
 						, callback);
 
-						require('../models/stats').stats(function(data) {
+						stats.get(function(data) {
 							server.io.sockets.emit('stats', data);
 						});
 					} else {
@@ -204,7 +206,7 @@ function getAllImages(images, urls, sol, callback) {
 
 		util.log('Processing url ' + url);
 
-		require('../models/stats').stats(function(data) {
+		stats.get(function(data) {
 			server.io.sockets.emit('stats', data);
 		});
 
@@ -304,13 +306,20 @@ function buildRoverManifest(rover, callback) {
 					util.log('Processing Sol %d ... %d remaining', idx, allSols.length);
 
 					getAllImages([], getCameraUrls(rover, idx), idx, function(images) {
-						dbDriver.db.insert({
+						dbDriver.db.update({
+							sol: idx
+							, rover: rover
+						}
+						, {
 							sol: idx
 							, rover: rover
 							, weather: null
 							, images: images
 						}
-						, { safe: true }
+						, { 
+							upsert: true
+							, safe: true
+						}
 						, processSol);
 					});
 				});
