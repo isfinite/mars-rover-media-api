@@ -18,7 +18,7 @@ require('./server/config/driver').loadDatabase(function() {
 	]);
 
 	io.sockets.on('connection', function() {
-		require('./server/models/stats').stats(function(data) {
+		require('./server/models/stats').get(function(data) {
 			io.sockets.emit('stats', data);
 		});
 	});
