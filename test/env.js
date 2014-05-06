@@ -2,13 +2,15 @@ var dotenv = require('dotenv').load();
 
 ///--- Tests
 
-module.exports.env_variables = function(test) {
-	test.ok(process.env.PORT, 'PORT exists in .env');
-	test.ok(process.env.NOISY, 'NOISY exists in .env');
-	if (process.env.DB_URL) test.ok(process.env.DB_URL, 'DB_URL exists in .env');
-	test.ok(process.env.CURIOSITY_MANIFEST, 'CURIOSITY_MANIFEST exists in .env');
-	test.ok(process.env.ROVER_URL, 'ROVER_URL exists in .env');
-	test.ok(process.env.ROVER_URL_EXT, 'ROVER_URL_EXT exists in .env');
-	test.ok(process.env.MAAS_URL, 'MAAS_URL exists in .env');
-	test.done();
-}
+describe('Environment variables', function() {
+	describe('dotenv is loading variables into process.env', function() {
+		it('should be loading variables', function() {
+			process.env.PORT.should.be.ok;
+			process.env.NOISY.should.be.ok;
+			process.env.CURIOSITY_MANIFEST.should.be.ok;
+			process.env.ROVER_URL.should.be.ok;
+			process.env.ROVER_URL_EXT.should.be.ok;
+			process.env.MAAS_URL.should.be.ok;
+		});
+	});
+});

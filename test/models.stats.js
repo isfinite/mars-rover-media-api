@@ -4,26 +4,17 @@ var stats = require('../server/models/stats')
 
 ///--- Tests
 
-module.exports.statsDbFailure = function(test) {
-	stats.get(function(data) {
-		test.ok(data.err, 'Error message exists');
-		test.done();
+describe('Stats model', function() {
+	describe('Stats.get', function() {
+		before(function(done) {
+			driver.reset();
+			done();
+		});
+		it('should return a database error since it hasnt been loaded yet', function(done) {
+			stats.get(function(data) {
+				data.err.should.be.ok;
+				done();
+			});
+		});
 	});
-}
-
-module.exports.statsDbSuccess = {
-	setUp: function(callback) {
-		driver.loadDatabase(callback);
-	}
-	, statsDbSuccess: function(test) {
-		stats.get(function(data) {
-			test.ok(data.count, 'Stats count exists');
-			test.deepEqual(typeof data.count, 'number', 'Stats count is correct data type');
-			test.done();
-		});	
-	}
-	, tearDown: function(callback) {
-		driver.db.close();
-		callback();
-	}
-}
+});

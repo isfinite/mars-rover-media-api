@@ -3,45 +3,50 @@ var driver = require('../server/config/driver')
 
 ///--- Tests
 
-module.exports.loadMongoDB = {
-	setUp: function(callback) {
-		callback();
-	}
-	, loadMongoDB: function(test) {
-		if (process.env.DB_URL) {
-			test.ok(process.env.DB_URL, 'MongoDB loaded');
-
-			driver.loadDatabase(function() {
-				test.ok(driver.collection, 'DB added to module exports');
-				test.done();
-			});
-		} else {
-			test.done();
-		}
-	}
-	, tearDown: function(callback) {
-		driver.db.close();
-		driver.db = null;
-		callback();
-	}
-}
-
-module.exports.loadNeDB = {
-	setUp: function(callback) {
-		this.url = process.env.DB_URL;
-		delete process.env.DB_URL;
-		callback();
-	}
-	, loadDb: function(test) {
-		test.ok(!process.env.DB_URL, 'DB does not exist in .env');
-		driver.loadDatabase(function() {
-			test.ok(driver.collection, 'DB added to module exports');
-			test.done();
+describe('Database driver', function() {
+	describe('MongoDB', function() {
+		it('should have DB_URL in .env to load MongoDB', function() {
+			process.env.DB_URL.should.be.ok;
 		});
-	}
-	, tearDown: function(callback) {
-		process.env.DB_URL = this.url;
-		driver.db = null;
-		callback();
-	}
-}
+		///--- next();
+		it('should have no current driver exports', function() {
+			driver.should.not.have.enumerable('db');
+			driver.should.not.have.enumerable('collection');
+		});
+		///--- next();
+		it('should load the database correctly with valid exports', function(done) {
+			driver.load(function() {
+				driver.collection.should.be.ok;
+				driver.db.should.be.ok;
+				driver.db._name.should.be.ok;
+				done();
+			});
+		});
+	});
+	///--- next();
+	describe('NeDB', function() {
+		before(function(done) {
+			process.env.DB_URL_ORIG = process.env.DB_URL;
+			delete process.env.DB_URL;
+			driver.reset();
+			done();
+		});
+		///--- next();
+		it('should not have DB_URL in .env to load NeDB', function() {
+			process.env.should.not.have.enumerable('DB_URL');
+		});
+		///--- next();
+		it('should have reset driver exports', function() {
+			driver.should.not.have.enumerable('db');
+			driver.should.not.have.enumerable('collection');
+		});
+		///--- next();
+		it('should load the database correctly with valid exports', function(done) {
+			driver.load(function() {
+				driver.collection.should.be.ok;
+				driver.collection.filename.should.be.ok;
+				done();
+			});
+		});
+	});
+});
