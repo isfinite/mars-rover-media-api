@@ -103,7 +103,7 @@ function processSolData(item, callback) {
 					imageDataToAdd.push(img);
 
 					if (images.length <= 0) {
-						dbDriver.db.update({
+						dbDriver.collection.update({
 							sol: item.sol
 							, rover: 'curiosity'
 						}
@@ -166,7 +166,7 @@ function parseRoverManifest(rover, callback) {
 			console.log('Processing sol ' + item.sol + ' ... ' + sols.length + ' remaining');
 
 			// Get stored data for this Sol
-			dbDriver.db.findOne({ sol: item.sol }, function(err, doc) {
+			dbDriver.collection.findOne({ sol: item.sol, rover: 'curiosity' }, function(err, doc) {
 				// Test if manifest and db Sol data is out of sync
 				// If out of sync [re]process that Sol data
 				// If db and manifest match skip to next Sol
@@ -284,7 +284,7 @@ function buildRoverManifest(rover, callback) {
 			, allSols = new Array(latest_sol)
 			, idx = 0;
 
-		dbDriver.db.find({ rover: rover }).sort({ sol: -1 }).limit(1, function(err, manifest) {
+		dbDriver.collection.find({ rover: rover }).sort({ sol: -1 }).limit(1, function(err, manifest) {
 			(function processSol(err) {
 				if (err) util.log(err);
 
@@ -296,8 +296,8 @@ function buildRoverManifest(rover, callback) {
 				allSols.shift();
 				idx = latest_sol - allSols.length;
 				
-				dbDriver.db.findOne({ rover: rover, sol: idx}, function(err, doc) {
-					if (doc || idx > (manifest[0] && manifest[0].sol)) {
+				dbDriver.collection.findOne({ rover: rover, sol: idx}, function(err, doc) {
+					if (doc) {
 						util.log('Skipping sol %d', idx);
 						processSol();
 						return;
@@ -306,7 +306,7 @@ function buildRoverManifest(rover, callback) {
 					util.log('Processing Sol %d ... %d remaining', idx, allSols.length);
 
 					getAllImages([], getCameraUrls(rover, idx), idx, function(images) {
-						dbDriver.db.update({
+						dbDriver.collection.update({
 							sol: idx
 							, rover: rover
 						}
@@ -357,7 +357,7 @@ function parseRoverData(rovers) {
 ///--- Exports
 
 module.exports.run = function(rovers) {
-	if (dbDriver.db) {
+	if (dbDriver.collection) {
 		parseRoverData(rovers);
 	} else {
 		util.log('No database loaded, unable to start daemon');
