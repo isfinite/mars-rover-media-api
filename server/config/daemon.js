@@ -341,22 +341,17 @@ function parseRoverData(rovers) {
 		return;
 	}
 
-	var rover = rovers.shift();
+	rovers.forEach(function(rover) {
+		util.log('Processing %s images ...', rover.name);
 
-	util.log('Processing %s images ...', rover.name);
-
-	if (rover.type === 'scrape') {
-		buildRoverManifest(rover.name, function() {
-			parseRoverData(rovers);
-		});
-	} else if (rover.type === 'manifest') {
-		parseRoverManifest(rover.name, function() {
-			parseRoverData(rovers);
-		});
-	} else {
-		util.log('Invalid or missing rover daemon type');
-	}
-
+		if (rover.type === 'scrape') {
+			buildRoverManifest(rover.name);
+		} else if (rover.type === 'manifest') {
+			parseRoverManifest(rover.name);
+		} else {
+			util.log('Invalid or missing rover daemon type');
+		}
+	});
 }
 
 ///--- Exports
