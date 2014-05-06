@@ -1,7 +1,9 @@
 var mongojs = require('mongojs')
 	, Datastore = require('nedb');
 
-module.exports.loadDatabase = function(callback) {
+module.exports.load = function(callback) {
+	if (exports.db) return exports.db;
+
 	var db = (process.env.DB_URL)
 		? mongojs(process.env.DB_URL, ['mrma'])
 		: new Datastore({ filename: process.cwd() + '/datastore/data', autoload: true })
@@ -16,4 +18,9 @@ module.exports.loadDatabase = function(callback) {
 	}
 
 	callback && callback();
+}
+
+module.exports.reset = function() {
+	delete exports.db;
+	delete exports.collection;
 }
