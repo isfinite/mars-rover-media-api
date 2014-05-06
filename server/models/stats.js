@@ -3,7 +3,11 @@ var driver = require('../config/driver');
 var Stats = (function() {
 
 	var _statsData = function(callback) {
-		driver.db.aggregate([
+		if (!driver.collection) {
+			callback({ err: 'Unable to find database' });
+			return;
+		}
+		driver.collection.aggregate([
 			{
 				$unwind: '$images'
 			}
