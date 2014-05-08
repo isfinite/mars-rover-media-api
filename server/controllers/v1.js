@@ -1,9 +1,9 @@
-var db = require('../config/driver').db;
+var db = require('../config/driver').collection;
 
 module.exports.getRoot = function(req, res, next) {
 	res.send({
-		stats: 'http://mars-rover-media-api/v1/stats'
-		, latest: 'http://mars-rover-media-api/v1/latest'
+		stats: 'http://mars-rover-media-api/stats'
+		, latest: 'http://mars-rover-media-api/latest'
 	});
 	return next();
 }
@@ -69,15 +69,15 @@ module.exports.getMedia = function(req, res, next) {
 }
 
 module.exports.getLatest = function(req, res, next) {
-	db.find({}).sort({ sol: -1 }).limit(1, function(err, doc) {
-		res.send(doc.shift());
+	require('../models/latest').get(function(data) {
+		res.send(data);
 	});
 
 	return next();
 }
 
 module.exports.getStats = function(req, res, next) {
-	require('../models/stats').stats(function(data) {
+	require('../models/stats').get(function(data) {
 		res.send(data);
 	});
 
