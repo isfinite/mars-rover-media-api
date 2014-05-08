@@ -8,6 +8,8 @@ io.set('log level', 1);
 
 require('./server/config/driver').load(function() {
 
+	server.use(restify.jsonp());
+
 	module.exports.server = server;
 	require('./server/config/routes').routes();
 
