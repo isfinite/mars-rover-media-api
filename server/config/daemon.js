@@ -163,14 +163,18 @@ function parseRoverManifest(rover, callback) {
 				return;
 			}
 
-			console.log('Processing sol ' + item.sol + ' ... ' + sols.length + ' remaining');
-
 			// Get stored data for this Sol
 			dbDriver.collection.findOne({ sol: item.sol, rover: 'curiosity' }, function(err, doc) {
 				// Test if manifest and db Sol data is out of sync
 				// If out of sync [re]process that Sol data
 				// If db and manifest match skip to next Sol
-				(doc && doc.images.length === item.num_images) ? processSol(): processSolData(item, processSol);
+				if (doc) {
+					util.log('Curiosity: Skipping sol ' + item.sol);
+					processSol();
+				} else {
+					util.log('Curiosity: Processing Sol %d ... %d remaining', item.sol, sols.length);
+					processSolData(item, processSol);
+				}
 			});
 
 		})();
@@ -289,7 +293,7 @@ function buildRoverManifest(rover, callback) {
 				if (err) util.log(err);
 
 				if (allSols.length <= 0) {
-					callback();
+					util.log(rover + ' finished');
 					return;
 				};
 
@@ -298,12 +302,12 @@ function buildRoverManifest(rover, callback) {
 				
 				dbDriver.collection.findOne({ rover: rover, sol: idx}, function(err, doc) {
 					if (doc) {
-						util.log('Skipping sol %d', idx);
+						util.log(rover + ': Skipping sol %d', idx);
 						processSol();
 						return;
 					}
 
-					util.log('Processing Sol %d ... %d remaining', idx, allSols.length);
+					util.log(rover + ': Processing Sol %d ... %d remaining', idx, allSols.length);
 
 					getAllImages([], getCameraUrls(rover, idx), idx, function(images) {
 						dbDriver.collection.update({
