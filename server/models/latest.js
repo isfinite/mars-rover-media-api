@@ -11,8 +11,20 @@ var Latest = (function() {
 		driver
 			.collection
 			.aggregate([
-				{ $sort: { _id: -1 }}
-				, { $group: { _id: '$rover', results: { $first: '$images' }}}
+				{
+					$group: {
+						_id: '$rover'
+						, sol: {
+							$max: '$sol'
+						}
+						, weather: {
+							$last: '$weather'
+						}
+						, images: {
+							$last: '$images'
+						}
+					}
+				}
 			], function(err, docs) {
 				if (err) callback(err);
 				if (docs) {
