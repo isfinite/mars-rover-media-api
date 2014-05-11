@@ -10,8 +10,13 @@ var JPL_ROOT = 'http://mars.jpl.nasa.gov/'
 	, ROVER_ROOT = 'http://marsrover.nasa.gov/'
 	, MANIFEST_URL = '-raw-images/image/image_manifest.json'
 	, SCRAPER_URL = ROVER_ROOT + 'gallery/all/'
-	, SCRAPER_URL_EXT = '.html'
-	, MAAS_URL = 'http://marsweather.ingenology.com/v1/archive/?sol=';
+	, SCRAPER_URL_EXT = '.html';
+
+///--- Models
+
+var _Image = require('../models/image');
+
+///--- Private Methods
 
 /**
 * Create camera urls for the rover and Sol
@@ -41,11 +46,32 @@ function getCameraUrls(rover, sol) {
 	return urls;
 }
 
+/**
+* Retrieves the image width/height/filesize without retrieving the entire image
+*
+* @method getImageProperties
+* @param {Object} Image data to be converted into a new object format
+* @param {Function} Function to be called after request is completed
+* @return {Object} Newly defined image data object
+*/
+function getImageProperties(url, callback) {
+	var _req = http.get(url, function(resp) {
+		require('imagesize')(resp, function(err, res) {
+			_req.abort();
+			callback({
+				filesize: resp.headers['content-length'] || null
+				, width: res && res.width || null
+				, height: res && res.height || null
+			});
+		});
+	});
+}
+
 var _Rover = function(name, callback) {
 
 	if (!name) throw new Error('Cannot create an unnamed rover');
 
-	var url = JPL_ROOT + name + '-raw-images/image/image_manifest.json'
+	var url = JPL_ROOT + name + MANIFEST_URL
 		, self = this;
 
 	this.name = name;
@@ -58,8 +84,144 @@ var _Rover = function(name, callback) {
 
 };
 
-_Rover.prototype.runUrls = function() {
-	console.log('test')
+_Rover.prototype.parseImages = function(urls, sol, callback) {
+
+	var self = this;
+
+	(function _run() {
+		if (!urls.length) {
+			callback();
+			return;
+		}
+
+		var url = urls.shift();
+
+		req(url, function(err, resp, body) {
+			
+			try {
+
+				var imagesData = JSON.parse(body).images;
+
+				(function _parseImage() {
+
+					if (!imagesData.length) {
+						_run();
+						return;
+					}
+
+					var imageData = imagesData.shift();
+
+					_Image.findOne({ 'url.raw': imageData.urlList }, function(err, doc) {
+						if (doc) {
+							util.log('%s | Skipping image ... %d images remaining', self.name, imagesData.length);
+							_parseImage();
+							return;
+						}
+
+						getImageProperties(imageData.urlList, function(props) {
+							var image = new _Image({
+								rover: self.name
+								, sol: sol
+								, sclk: imageData.sclk
+								, camera: imageData.instrument
+								, url: {
+									raw: imageData.urlList
+									, site: JPL_ROOT + self.name + '/multimedia/raw/?rawid=' + imageData.itemName
+									, label: imageData.pdsLabelUrl
+								}
+								, captured: imageData.utc
+								, added: imageData.dateAdded
+								, location: {
+									site: imageData.site
+									, drive: imageData.drive
+								}
+								, properties: {
+									filetype: imageData.sampleType
+									, width: props.width >> 0
+									, filesize: props.filesize >> 0
+									, height: props.height >> 0
+								}
+							});
+
+							util.log('%s | Sol %d | Image added ... %d images remaining', self.name, sol, imagesData.length);
+							image.save(_parseImage);
+
+						});
+					});
+				})();
+
+				return;
+
+			} catch(e) {
+
+				if (resp.statusCode !== 200) {
+					_run();
+					return;
+				}
+
+				var imageElements = $.load(body)('a[href*="' + resp.req._header.match(/\d+/g).shift() + '/"]').toArray();
+
+				(function _parseImage() {
+
+					if (!imageElements.length) {
+						_run();
+						return;
+					}
+
+					var element = imageElements.shift()
+						, filenameParts = element.attribs.href.split('/').pop().split('.')
+						, filename = { file: filenameParts.shift(), ext: '.' + filenameParts.shift() }
+						, roverCode = filename.file.substr(0, 1) >> 0
+						, cameraIdent = filename.file.substr(1, 1)
+						, rootUrl = SCRAPER_URL + roverCode + '/' + cameraIdent.toLowerCase() + '/' + util.pad(sol, 3) + '/' + filename.file
+						, sclk = filename.file.substr(2, 9) >> 0;
+
+					_Image.findOne({ 'url.raw': rootUrl + filename.ext }, function(err, doc) {
+						if (doc) {
+							util.log('%s | Skipping image ... %d images remaining', self.name, imageElements.length);
+							_parseImage();
+							return;
+						}
+
+						getImageProperties(rootUrl + filename.ext, function(props) {
+							var image = new _Image({
+								rover: self.name
+								, sol: sol
+								, sclk: sclk
+								, camera: camerasRaw[cameraIdent] + '_' + filename.file.substr(23, 1)
+
+								// Using spacecraft clock as a base to calculate datetime image was taken
+								, captured: new Date(new Date('January 1, 2000 11:58:55 UTC').setSeconds(sclk))
+
+								, location: {
+									site: filename.file.substr(14, 2)
+									, drive: filename.file.substr(16, 2)
+								}
+								, url: {
+									raw: rootUrl + filename.ext
+									, site: rootUrl + SCRAPER_URL_EXT.toUpperCase()
+								}
+								, properties: {
+									width: props.width >> 0
+									, filesize: props.filesize >> 0
+									, height: props.height >> 0
+								}
+							});
+
+							util.log('%s | Sol %d | Image added ... %d images remaining', self.name, sol, imageElements.length);
+							image.save(_parseImage);
+
+						});
+					});
+
+				})();
+
+				return;
+
+			}
+
+		});
+	})();
 }
 
 _Rover.prototype.buildManifest = function(callback) {
@@ -87,9 +249,7 @@ _Rover.prototype.buildManifest = function(callback) {
 				});
 			}
 
-			self.manifest = manifest;
-
-			callback.call(self);
+			callback.call(self, manifest);
 
 			return;
 
@@ -104,8 +264,6 @@ _Rover.prototype.buildManifest = function(callback) {
 					, url: getCameraUrls(self.name, i)
 				});
 			}
-
-			self.manifest = manifest;
 
 			callback.call(self, manifest);
 
