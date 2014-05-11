@@ -13,11 +13,7 @@ require('./server/config/driver').load(function() {
 	module.exports.server = server;
 	require('./server/config/routes').routes();
 
-	require('./server/config/daemon').run([
-		{ name: 'opportunity', type: 'scrape' }
-		, { name: 'spirit', type: 'scrape' }
-		, { name: 'curiosity', type: 'manifest' }
-	]);
+	require('./server/config/daemon');
 
 	io.sockets.on('connection', function() {
 		require('./server/models/stats').get(function(data) {

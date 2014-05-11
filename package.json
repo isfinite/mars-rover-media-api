@@ -1,7 +1,7 @@
 {
   "name": "mars-rover-media-api",
   "description": "Mars Rover multimedia API",
-  "version": "0.0.1-10",
+  "version": "0.0.1-14",
   "private": true,
   "subdomain": "mars-rover-media-api",
   "engine": "",
@@ -10,10 +10,10 @@
     "request": "^2.34.0",
     "socket.io": "^0.9.16",
     "imagesize": "^1.0.0",
-    "mongojs": "^0.13.0",
     "dotenv": "^0.2.8",
     "restify": "^2.7.0",
-    "cheerio": "^0.15.0"
+    "cheerio": "^0.15.0",
+    "mongoose": "^3.8.9"
   },
   "devDependencies": {
     "should": "^3.3.1",
