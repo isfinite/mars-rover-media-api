@@ -4,15 +4,13 @@ var mongoose = require('mongoose')
 var imageSchema = new Schema({
 	sol: Number
 	, rover: String
-	, camera: {
-		instrument: String
-	}
+	, camera: String
 	, sclk: Number
 	, captured: Date
 	, added: Date
 	, location: {
 		site: String
-		, driver: String
+		, drive: String
 	}
 	, url: {
 		raw: String
@@ -20,11 +18,13 @@ var imageSchema = new Schema({
 		, label: String
 	}
 	, properties: {
-		filesize: Number
+		filetype: String
+		, filesize: Number
 		, width: Number
 		, height: Number
-		, type: String
 	}
+}, {
+	strict: true
 });
 
 var _Image = mongoose.model('Image', imageSchema);
