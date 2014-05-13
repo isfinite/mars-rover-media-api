@@ -140,7 +140,7 @@ _Rover.prototype.parseImages = function(urls, sol, callback) {
 					return new _Image({
 						rover: self.name
 						, sol: sol
-						, sclk: data.sclk
+						, sclk: data.sclk >> 0
 						, camera: data.instrument
 						, url: {
 							raw: data.urlList
