@@ -40,4 +40,4 @@ Show all the images in Sols 600 - 615 with pressure less than 1000 and a maximum
 
 ## License
 
-MIT
+[MIT](https://github.com/isfinite/mars-rover-media-api/blob/master/LICENSE)
