@@ -67,6 +67,40 @@ function getImageProperties(url, callback) {
 	});
 }
 
+function parseImage(images, callback) {
+	return function(getImageModel) {
+		(function _parse() {
+
+			if (!images.length) {
+				callback();
+				return;
+			}
+
+			var image = getImageModel( images.shift() );
+
+			_Image.findOne({ 'url.raw': image.url.raw }, function(err, doc) {
+				if (doc) {
+					util.log('%s | Skipping image ... %d images remaining', image.rover, images.length);
+					_parse();
+					return;
+				}
+
+				getImageProperties(image.url.raw, function(props) {
+					image.properties = {
+						width: props.width >> 0
+						, filesize: props.filesize >> 0
+						, height: props.height >> 0
+					}
+
+					util.log('%s | Sol %d | Image added ... %d images remaining', image.rover, image.sol, images.length);
+					image.save(_parse);
+				});
+			});
+
+		})();
+	}
+}
+
 var _Rover = function(name, callback) {
 
 	if (!name) throw new Error('Cannot create an unnamed rover');
@@ -97,60 +131,30 @@ _Rover.prototype.parseImages = function(urls, sol, callback) {
 		var url = urls.shift();
 
 		req(url, function(err, resp, body) {
-			
+
+			// Using the try/catch block to determine if valid JSON is returned
+			// or its HTML that needs to be scraped
 			try {
 
-				var imagesData = JSON.parse(body).images;
-
-				(function _parseImage() {
-
-					if (!imagesData.length) {
-						_run();
-						return;
-					}
-
-					var imageData = imagesData.shift();
-
-					_Image.findOne({ 'url.raw': imageData.urlList }, function(err, doc) {
-						if (doc) {
-							util.log('%s | Skipping image ... %d images remaining', self.name, imagesData.length);
-							_parseImage();
-							return;
+				parseImage(JSON.parse(body).images, _run)(function(data) {
+					return new _Image({
+						rover: self.name
+						, sol: sol
+						, sclk: data.sclk
+						, camera: data.instrument
+						, url: {
+							raw: data.urlList
+							, site: JPL_ROOT + self.name + '/multimedia/raw/?rawid=' + data.itemName
+							, label: data.pdsLabelUrl
 						}
-
-						getImageProperties(imageData.urlList, function(props) {
-							var image = new _Image({
-								rover: self.name
-								, sol: sol
-								, sclk: imageData.sclk
-								, camera: imageData.instrument
-								, url: {
-									raw: imageData.urlList
-									, site: JPL_ROOT + self.name + '/multimedia/raw/?rawid=' + imageData.itemName
-									, label: imageData.pdsLabelUrl
-								}
-								, captured: imageData.utc
-								, added: imageData.dateAdded
-								, location: {
-									site: imageData.site
-									, drive: imageData.drive
-								}
-								, properties: {
-									filetype: imageData.sampleType
-									, width: props.width >> 0
-									, filesize: props.filesize >> 0
-									, height: props.height >> 0
-								}
-							});
-
-							util.log('%s | Sol %d | Image added ... %d images remaining', self.name, sol, imagesData.length);
-							image.save(_parseImage);
-
-						});
+						, captured: data.utc
+						, added: data.dateAdded
+						, location: {
+							site: data.site
+							, drive: data.drive
+						}
 					});
-				})();
-
-				return;
+				});
 
 			} catch(e) {
 
@@ -159,64 +163,31 @@ _Rover.prototype.parseImages = function(urls, sol, callback) {
 					return;
 				}
 
-				var imageElements = $.load(body)('a[href*="' + resp.req._header.match(/\d+/g).shift() + '/"]').toArray();
+				parseImage($.load(body)('a[href*="' + resp.req._header.match(/\d+/g).shift() + '/"]').toArray(), _run)(function(data) {
 
-				(function _parseImage() {
-
-					if (!imageElements.length) {
-						_run();
-						return;
-					}
-
-					var element = imageElements.shift()
-						, filenameParts = element.attribs.href.split('/').pop().split('.')
+					var filenameParts = data.attribs.href.split('/').pop().split('.')
 						, filename = { file: filenameParts.shift(), ext: '.' + filenameParts.shift() }
-						, roverCode = filename.file.substr(0, 1) >> 0
 						, cameraIdent = filename.file.substr(1, 1)
-						, rootUrl = SCRAPER_URL + roverCode + '/' + cameraIdent.toLowerCase() + '/' + util.pad(sol, 3) + '/' + filename.file
-						, sclk = filename.file.substr(2, 9) >> 0;
+						, rootUrl = SCRAPER_URL + (filename.file.substr(0, 1) >> 0) + '/' + cameraIdent.toLowerCase() + '/' + util.pad(sol, 3) + '/' + filename.file;
 
-					_Image.findOne({ 'url.raw': rootUrl + filename.ext }, function(err, doc) {
-						if (doc) {
-							util.log('%s | Skipping image ... %d images remaining', self.name, imageElements.length);
-							_parseImage();
-							return;
+					return new _Image({
+						rover: self.name
+						, sol: sol
+						, sclk: filename.file.substr(2, 9) >> 0
+						, camera: camerasRaw[cameraIdent] + '_' + filename.file.substr(23, 1)
+						, url: {
+							raw: rootUrl + filename.ext
+							, site: rootUrl + SCRAPER_URL_EXT.toUpperCase()
+						}
+						, location: {
+							site: filename.file.substr(14, 2)
+							, drive: filename.file.substr(16, 2)
 						}
 
-						getImageProperties(rootUrl + filename.ext, function(props) {
-							var image = new _Image({
-								rover: self.name
-								, sol: sol
-								, sclk: sclk
-								, camera: camerasRaw[cameraIdent] + '_' + filename.file.substr(23, 1)
-
-								// Using spacecraft clock as a base to calculate datetime image was taken
-								, captured: new Date(new Date('January 1, 2000 11:58:55 UTC').setSeconds(sclk))
-
-								, location: {
-									site: filename.file.substr(14, 2)
-									, drive: filename.file.substr(16, 2)
-								}
-								, url: {
-									raw: rootUrl + filename.ext
-									, site: rootUrl + SCRAPER_URL_EXT.toUpperCase()
-								}
-								, properties: {
-									width: props.width >> 0
-									, filesize: props.filesize >> 0
-									, height: props.height >> 0
-								}
-							});
-
-							util.log('%s | Sol %d | Image added ... %d images remaining', self.name, sol, imageElements.length);
-							image.save(_parseImage);
-
-						});
+						// Using spacecraft clock as a base to calculate datetime image was taken
+						, captured: new Date(new Date('January 1, 2000 11:58:55 UTC').setSeconds(image.sclk))
 					});
-
-				})();
-
-				return;
+				});
 
 			}
 
