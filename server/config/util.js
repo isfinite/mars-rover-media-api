@@ -4,7 +4,7 @@ var fs = require('fs')
 	, path = require('path');
 
 module.exports.log = function() {
-	if (process.env.NOISY) console.log.apply(this, arguments);
+	if (process.env.NOISY) console.log.apply(console, arguments);
 }
 
 module.exports.pad = function(originalNum, width, padChar) {
