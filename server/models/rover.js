@@ -27,6 +27,9 @@ var _Image = require('../models/image');
 * @return {Array} Url's for each camera of this Sol and rover
 */
 function getCameraUrls(rover, sol) {
+	// Rovers with manifests don't need these camera identifiers
+	if (rover.type === 'manifest') return;
+
 	camerasRaw = camerasRaw || {
 		'F': 'FHAZ'
 		, 'R': 'RHAZ'
@@ -41,7 +44,7 @@ function getCameraUrls(rover, sol) {
 		, len = cameraKeys.length
 		, urls = [];
 
-	for ( ; i < len; i++ ) urls.push(SCRAPER_URL + rover + '_' + cameraKeys[i].toLowerCase() + util.pad(sol, 3) + '_text' + SCRAPER_URL_EXT);
+	for ( ; i < len; i++ ) urls.push(SCRAPER_URL + rover.name + '_' + cameraKeys[i].toLowerCase() + util.pad(sol, 3) + '_text' + SCRAPER_URL_EXT);
 	
 	return urls;
 }
@@ -57,7 +60,7 @@ function getCameraUrls(rover, sol) {
 function getImageProperties(url, callback) {
 	var _req = http.get(url, function(resp) {
 		require('imagesize')(resp, function(err, res) {
-			_req.abort();
+			_req.end();
 			callback({
 				filesize: resp.headers['content-length'] || null
 				, width: res && res.width || null
@@ -93,7 +96,14 @@ function parseImage(images, callback) {
 					}
 
 					util.log('%s | Sol %d | Image added ... %d images remaining', image.rover, image.sol, images.length);
-					image.save(_parse);
+					image.save(function(err) {
+						if (err) {
+							console.log(err);
+							process.exit(1);
+						} else {
+							_parse();
+						}
+					});
 				});
 			});
 
@@ -132,9 +142,12 @@ _Rover.prototype.parseImages = function(urls, sol, callback) {
 
 		req(url, function(err, resp, body) {
 
-			// Using the try/catch block to determine if valid JSON is returned
-			// or its HTML that needs to be scraped
-			try {
+			if (resp.statusCode !== 200) {
+				_run();
+				return;
+			}
+
+			if (self.type === 'manifest') {
 
 				parseImage(JSON.parse(body).images, _run)(function(data) {
 					return new _Image({
@@ -156,24 +169,20 @@ _Rover.prototype.parseImages = function(urls, sol, callback) {
 					});
 				});
 
-			} catch(e) {
-
-				if (resp.statusCode !== 200) {
-					_run();
-					return;
-				}
+			} else {
 
 				parseImage($.load(body)('a[href*="' + resp.req._header.match(/\d+/g).shift() + '/"]').toArray(), _run)(function(data) {
 
 					var filenameParts = data.attribs.href.split('/').pop().split('.')
 						, filename = { file: filenameParts.shift(), ext: '.' + filenameParts.shift() }
 						, cameraIdent = filename.file.substr(1, 1)
-						, rootUrl = SCRAPER_URL + (filename.file.substr(0, 1) >> 0) + '/' + cameraIdent.toLowerCase() + '/' + util.pad(sol, 3) + '/' + filename.file;
+						, rootUrl = SCRAPER_URL + (filename.file.substr(0, 1) >> 0) + '/' + cameraIdent.toLowerCase() + '/' + util.pad(sol, 3) + '/' + filename.file
+						, sclk = filename.file.substr(2, 9) >> 0;
 
 					return new _Image({
 						rover: self.name
 						, sol: sol
-						, sclk: filename.file.substr(2, 9) >> 0
+						, sclk: sclk
 						, camera: camerasRaw[cameraIdent] + '_' + filename.file.substr(23, 1)
 						, url: {
 							raw: rootUrl + filename.ext
@@ -185,7 +194,7 @@ _Rover.prototype.parseImages = function(urls, sol, callback) {
 						}
 
 						// Using spacecraft clock as a base to calculate datetime image was taken
-						, captured: new Date(new Date('January 1, 2000 11:58:55 UTC').setSeconds(image.sclk))
+						, captured: new Date(new Date('January 1, 2000 11:58:55 UTC').setSeconds(sclk))
 					});
 				});
 
@@ -203,43 +212,33 @@ _Rover.prototype.buildManifest = function(callback) {
 		, len = 0
 		, self = this;
 
+	function _build(data) {
+
+		if (data.splice) len = data.length;
+
+		for ( ; i < len; i++ ) {
+			manifest.push({
+				sol: i
+				, url: getCameraUrls(self, i) || [data[i].catalog_url]
+			});
+		}
+
+		callback.call(self, manifest);
+
+	}
+
 	req(url, function(err, resp, body) {
 
-		try {
+		if (self.type === 'manifest') {
 
-			var sols = JSON.parse(body).sols.slice(0);
+			_build(JSON.parse(body).sols);
 
-			len = sols.length;
+		} else {
 
-			for ( ; i < len; i++ ) {
-				manifest.push({
-					sol: i
-					, url: [
-						sols[i].catalog_url
-					]
-				});
-			}
+			// Opportunity/Spirit start at Sol 1 not 0
+			++i;
 
-			callback.call(self, manifest);
-
-			return;
-
-		} catch(e) {
-
-			i = 1;
-			len = $.load(body)('p:contains("Sol"):first-child').text().match(/\d+/g).shift() >> 0;
-
-			for ( ; i < len; i++ ) {
-				manifest.push({
-					sol: i
-					, url: getCameraUrls(self.name, i)
-				});
-			}
-
-			callback.call(self, manifest);
-
-			return;
-
+			_build($.load(body)('p:contains("Sol"):first-child').text().match(/\d+/g).shift() >> 0);
 		}
 
 	});
