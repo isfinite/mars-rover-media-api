@@ -96,14 +96,7 @@ function parseImage(images, callback) {
 					}
 
 					util.log('%s | Sol %d | Image added ... %d images remaining', image.rover, image.sol, images.length);
-					image.save(function(err) {
-						if (err) {
-							console.log(err);
-							process.exit(1);
-						} else {
-							_parse();
-						}
-					});
+					image.save(_parse);
 				});
 			});
 
