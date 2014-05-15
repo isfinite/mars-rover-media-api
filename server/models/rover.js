@@ -151,13 +151,13 @@ _Rover.prototype.parseImages = function(urls, sol, callback) {
 						, url: {
 							raw: data.urlList
 							, site: JPL_ROOT + self.name + '/multimedia/raw/?rawid=' + data.itemName
-							, label: data.pdsLabelUrl
+							, label: data.pdsLabelUrl || ''
 						}
 						, captured: data.utc
 						, added: data.dateAdded
 						, location: {
-							site: data.site
-							, drive: data.drive
+							site: data.site || ''
+							, drive: data.drive || ''
 						}
 					});
 				});
