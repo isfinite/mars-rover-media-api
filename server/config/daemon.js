@@ -66,7 +66,9 @@ var Daemon = (function _Daemon() {
 
 	if (dbDriver.db) {
 		_rovers.forEach(function(name) {
-			var _rover = new _Rover(name, function() {
+			var rover = new _Rover(name);
+
+			rover.init(function() {
 				this.buildManifest(runManifest);
 			});
 
