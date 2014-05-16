@@ -104,22 +104,25 @@ function parseImage(images, callback) {
 	}
 }
 
-var _Rover = function(name, callback) {
+function _Rover(name) {
 
 	if (!name) throw new Error('Cannot create an unnamed rover');
 
-	var url = JPL_ROOT + name + MANIFEST_URL
-		, self = this;
-
 	this.name = name;
 
-	// Determine if rover uses JSON manifest files, all others need to be scraped
+}
+
+_Rover.prototype.init = function(callback) {
+
+	var url = JPL_ROOT + this.name + MANIFEST_URL
+		, self = this;
+
 	http.get(url, function(resp) {
 		self.type = (resp.statusCode === 404) ? 'scrape' : 'manifest';
 		callback && callback.call(self);
 	});
 
-};
+}
 
 _Rover.prototype.parseImages = function(urls, sol, callback) {
 
