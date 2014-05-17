@@ -9,7 +9,7 @@ var http = require('http')
 ///--- Models
 
 var _Sol = require('../models/sol')
-	, _Rover = require('../models/rover');
+	, _rover = require('../models/rover');
 
 ///--- Private Methods
 
@@ -66,11 +66,8 @@ var Daemon = (function _Daemon() {
 
 	if (dbDriver.db) {
 		_rovers.forEach(function(name) {
-			var rover = new _Rover(name);
 
-			rover.init(function() {
-				this.buildManifest(runManifest);
-			});
+			var rover = _rover(name).parse();
 
 			util.log('Processing %s images ...', name);
 		});
