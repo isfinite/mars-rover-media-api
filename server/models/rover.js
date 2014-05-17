@@ -104,28 +104,7 @@ function parseImage(images, callback) {
 	}
 }
 
-function _Rover(name) {
-
-	if (!name) throw new Error('Cannot create an unnamed rover');
-
-	this.name = name;
-
-}
-
-_Rover.prototype.init = function(callback) {
-
-	var url = JPL_ROOT + this.name + MANIFEST_URL
-		, self = this;
-
-	http.get(url, function(resp) {
-		self.type = (resp.statusCode === 404) ? 'scrape' : 'manifest';
-		callback && callback.call(self);
-	});
-
-}
-
-_Rover.prototype.parseImages = function(urls, sol, callback) {
-
+function _parseImages() {
 	var self = this;
 
 	(function _run() {
@@ -200,8 +179,7 @@ _Rover.prototype.parseImages = function(urls, sol, callback) {
 	})();
 }
 
-_Rover.prototype.buildManifest = function(callback) {
-
+function _buildManifest(callback) {
 	var url = (this.type === 'scrape') ? SCRAPER_URL + this.name + SCRAPER_URL_EXT : JPL_ROOT + this.name + MANIFEST_URL
 		, manifest = []
 		, i = 0
@@ -214,12 +192,13 @@ _Rover.prototype.buildManifest = function(callback) {
 
 		for ( ; i < len; i++ ) {
 			manifest.push({
-				sol: i
+				sol: data[i].sol || i
 				, url: getCameraUrls(self, i) || [data[i].catalog_url]
 			});
 		}
 
-		callback.call(self, manifest);
+		self.manifest = manifest;
+		callback && callback.call(self, manifest);
 
 	}
 
@@ -238,9 +217,72 @@ _Rover.prototype.buildManifest = function(callback) {
 		}
 
 	});
+}
 
+var _pubsub = (function() {
+	var _subscribers = {};
+
+	return {
+		on: function(type, callback) {
+			if (callback) {
+				_subscribers[type] = _subscribers[type] || [];
+				_subscribers[type].push(callback);
+			}
+		}
+		, trigger: function(type) {
+			if (_subscribers[type]) {
+				_subscribers[type].forEach(function(callback) {
+					callback();
+				});
+			}
+		}
+	}
+}());
+
+function _parse() {
+	if (!this.type.length) {
+		var self = this;
+		_pubsub.on('built', function() {
+			_parseImages.call(self);
+		});
+	}
+}
+
+function rover(name, callback) {
+	if (!name) throw new Error('Cannot create an unnamed rover');
+
+	var props = {
+		name: {
+			value: name
+			, enumerable: true
+			, writable: true
+		}
+		, type: {
+			value: ''
+			, enumerable: true
+			, writable: true
+		}
+		, manifest: {
+			value: []
+			, enumerable: true
+			, writable: true
+		}
+	}
+
+	var _roverInstance = Object.create({ parse: _parse }, props);
+
+	http.get(JPL_ROOT + name + MANIFEST_URL, function(resp) {
+		_roverInstance.type = (resp.statusCode === 404) ? 'scrape' : 'manifest';
+
+		util.log('Building ' + name + ' manifest ...');
+		_buildManifest.call(_roverInstance, function() {
+			_pubsub.trigger('built');
+		});
+	});
+
+	return _roverInstance;
 }
 
 ///--- Exports
 
-module.exports = _Rover;
+module.exports = rover;
