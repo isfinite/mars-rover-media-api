@@ -1,7 +1,7 @@
 var http = require('http')
 	, req = require('request')
+	, mixin = require('../config/util').mixin
 	, $ = require('cheerio')
-	, util = require('../config/util')
 	, camerasRaw;
 
 ///--- Constants
@@ -21,7 +21,7 @@ var _Image = require('../models/image');
 /**
 * Create camera urls for the rover and Sol
 *
-* @method getCameraUrls
+* @function getCameraUrls
 * @param {String} Rover to be used
 * @param {Number} Sol to be used
 * @return {Array} Url's for each camera of this Sol and rover
@@ -52,7 +52,7 @@ function getCameraUrls(rover, sol) {
 /**
 * Retrieves the image width/height/filesize without retrieving the entire image
 *
-* @method getImageProperties
+* @function getImageProperties
 * @param {Object} Image data to be converted into a new object format
 * @param {Function} Function to be called after request is completed
 * @return {Object} Newly defined image data object
@@ -70,7 +70,8 @@ function getImageProperties(url, callback) {
 	});
 }
 
-function parseImage(images, callback) {
+function _parseImage(images) {
+	console.log(this);
 	return function(getImageModel) {
 		(function _parse() {
 
@@ -83,7 +84,7 @@ function parseImage(images, callback) {
 
 			_Image.findOne({ 'url.raw': image.url.raw }, function(err, doc) {
 				if (doc) {
-					util.log('%s | Skipping image ... %d images remaining', image.rover, images.length);
+					//util.log('%s | Skipping image ... %d images remaining', image.rover, images.length);
 					_parse();
 					return;
 				}
@@ -95,7 +96,7 @@ function parseImage(images, callback) {
 						, height: props.height >> 0
 					}
 
-					util.log('%s | Sol %d | Image added ... %d images remaining', image.rover, image.sol, images.length);
+					//util.log('%s | Sol %d | Image added ... %d images remaining', image.rover, image.sol, images.length);
 					image.save(_parse);
 				});
 			});
@@ -104,87 +105,46 @@ function parseImage(images, callback) {
 	}
 }
 
-function _parseImages() {
-	var self = this;
+function _parseUrls(urls) {
 
-	(function _run() {
-		if (!urls.length) {
-			callback();
-			return;
-		}
-
-		var url = urls.shift();
-
+	function _parseUrl(url) {
 		req(url, function(err, resp, body) {
-
-			if (resp.statusCode !== 200) {
-				_run();
-				return;
-			}
-
-			if (self.type === 'manifest') {
-
-				parseImage(JSON.parse(body).images, _run)(function(data) {
-					return new _Image({
-						rover: self.name
-						, sol: sol
-						, sclk: data.sclk >> 0
-						, camera: data.instrument
-						, url: {
-							raw: data.urlList
-							, site: JPL_ROOT + self.name + '/multimedia/raw/?rawid=' + data.itemName
-							, label: data.pdsLabelUrl || ''
-						}
-						, captured: data.utc
-						, added: data.dateAdded
-						, location: {
-							site: data.site || ''
-							, drive: data.drive || ''
-						}
-					});
-				});
-
-			} else {
-
-				parseImage($.load(body)('a[href*="' + resp.req._header.match(/\d+/g).shift() + '/"]').toArray(), _run)(function(data) {
-
-					var filenameParts = data.attribs.href.split('/').pop().split('.')
-						, filename = { file: filenameParts.shift(), ext: '.' + filenameParts.shift() }
-						, cameraIdent = filename.file.substr(1, 1)
-						, rootUrl = SCRAPER_URL + (filename.file.substr(0, 1) >> 0) + '/' + cameraIdent.toLowerCase() + '/' + util.pad(sol, 3) + '/' + filename.file
-						, sclk = filename.file.substr(2, 9) >> 0;
-
-					return new _Image({
-						rover: self.name
-						, sol: sol
-						, sclk: sclk
-						, camera: camerasRaw[cameraIdent] + '_' + filename.file.substr(23, 1)
-						, url: {
-							raw: rootUrl + filename.ext
-							, site: rootUrl + SCRAPER_URL_EXT.toUpperCase()
-						}
-						, location: {
-							site: filename.file.substr(14, 2)
-							, drive: filename.file.substr(16, 2)
-						}
-
-						// Using spacecraft clock as a base to calculate datetime image was taken
-						, captured: new Date(new Date('January 1, 2000 11:58:55 UTC').setSeconds(sclk))
-					});
-				});
-
-			}
-
+			console.log('Remaining %d ...', urls.length);
+			_parseUrls(urls);
 		});
-	})();
+	}
+
+	if (!urls.length) {
+		console.log('Finished');
+		return;
+	}
+
+	_parseUrl(urls.shift());
+
 }
 
-function _buildManifest(callback) {
+function _run() {
+	if (!this.manifest.length) {
+		var urls = [];
+		this.on('manifest.done', function(manifests) {
+			manifests.forEach(function(data) {
+				urls = urls.concat(data.urls);
+			});
+			this.parseUrls(urls);
+		});
+	}
+}
+
+/**
+* Normalizes a manifest for the rover instance regardless of its type
+*
+* @function _buildManifest
+*/
+function _buildManifest() {
 	var url = (this.type === 'scrape') ? SCRAPER_URL + this.name + SCRAPER_URL_EXT : JPL_ROOT + this.name + MANIFEST_URL
 		, manifest = []
 		, i = 0
-		, len = 0
-		, self = this;
+		, len = 0;
 
 	function _build(data) {
 
@@ -193,91 +153,67 @@ function _buildManifest(callback) {
 		for ( ; i < len; i++ ) {
 			manifest.push({
 				sol: data[i].sol || i
-				, url: getCameraUrls(self, i) || [data[i].catalog_url]
+				, urls: getCameraUrls(this, i) || [data[i].catalog_url]
 			});
 		}
 
-		self.manifest = manifest;
-		callback && callback.call(self, manifest);
+		this.trigger('manifest.done', manifest);
 
 	}
 
+	this.trigger('manifest.start');
+
 	req(url, function(err, resp, body) {
+		if (this.type === 'manifest') {
 
-		if (self.type === 'manifest') {
-
-			_build(JSON.parse(body).sols);
+			_build.call(this, JSON.parse(body).sols);
 
 		} else {
 
 			// Opportunity/Spirit start at Sol 1 not 0
 			++i;
 
-			_build($.load(body)('p:contains("Sol"):first-child').text().match(/\d+/g).shift() >> 0);
+			_build.call(this, $.load(body)('p:contains("Sol"):first-child').text().match(/\d+/g).shift() >> 0);
 		}
-
-	});
+	}.bind(this));
 }
 
-var _pubsub = (function() {
-	var _subscribers = {};
-
-	return {
-		on: function(type, callback) {
-			if (callback) {
-				_subscribers[type] = _subscribers[type] || [];
-				_subscribers[type].push(callback);
-			}
-		}
-		, trigger: function(type) {
-			if (_subscribers[type]) {
-				_subscribers[type].forEach(function(callback) {
-					callback();
-				});
-			}
-		}
+var _roverProperties = {
+	name: {
+		value: ''
+		, enumerable: true
+		, writable: true
 	}
-}());
-
-function _parse() {
-	if (!this.type.length) {
-		var self = this;
-		_pubsub.on('built', function() {
-			_parseImages.call(self);
-		});
+	, type: {
+		value: ''
+		, enumerable: true
+		, writable: true
+	}
+	, manifest: {
+		value: []
+		, enumerable: true
+		, writable: true
 	}
 }
 
-function rover(name, callback) {
+var _roverPrototype = {
+	run: _run
+	, parseUrls: _parseUrls
+}
+
+function rover(name) {
 	if (!name) throw new Error('Cannot create an unnamed rover');
 
-	var props = {
-		name: {
-			value: name
-			, enumerable: true
-			, writable: true
-		}
-		, type: {
-			value: ''
-			, enumerable: true
-			, writable: true
-		}
-		, manifest: {
-			value: []
-			, enumerable: true
-			, writable: true
-		}
-	}
+	// Mixin the pubsub methods to the rover prototype
+	mixin(_roverPrototype, require('../config/pubsub'));
 
-	var _roverInstance = Object.create({ parse: _parse }, props);
+	var _roverInstance = Object.create(_roverPrototype, _roverProperties);
+	
+	_roverInstance.name = name;
 
 	http.get(JPL_ROOT + name + MANIFEST_URL, function(resp) {
 		_roverInstance.type = (resp.statusCode === 404) ? 'scrape' : 'manifest';
-
-		util.log('Building ' + name + ' manifest ...');
-		_buildManifest.call(_roverInstance, function() {
-			_pubsub.trigger('built');
-		});
+		_buildManifest.call(_roverInstance);
 	});
 
 	return _roverInstance;
