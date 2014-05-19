@@ -1,7 +1,8 @@
 'use strict';
 
 var fs = require('fs')
-	, path = require('path');
+	, path = require('path')
+	, util = require('util');
 
 module.exports.log = function() {
 	if (process.env.NOISY) console.log.apply(console, arguments);
@@ -14,6 +15,12 @@ module.exports.pad = function(originalNum, width, padChar) {
 	if (numAsString.length >= width) return originalNum;
 
 	return new Array(++width - numAsString.length).join(padChar || 0) + numAsString;
+}
+
+module.exports.mixin = function(receiver, supplier) {
+	Object.keys(supplier).forEach(function(property) {
+		Object.defineProperty(receiver, property, Object.getOwnPropertyDescriptor(supplier, property));
+	});
 }
 
 module.exports.walk = function(modulesPath, excludeDir, callback) {
