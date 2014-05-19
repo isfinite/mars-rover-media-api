@@ -4,12 +4,12 @@ var http = require('http')
 	, cheerio = require('cheerio')
 	, util = require('../config/util')
 	, server = require('../../server')
-	, stats = require('../models/stats');
+	, stats = require('../models/stats')
+	, rover = require('../models/rover');
 
 ///--- Models
 
-var _Sol = require('../models/sol')
-	, _rover = require('../models/rover');
+var _Sol = require('../models/sol');
 
 ///--- Private Methods
 
@@ -60,14 +60,34 @@ function runManifest(manifest) {
 	})();
 }
 
+function _runSol(data) {
+
+	var urls = data.urls.slice();
+
+	this.runUrl(urls);
+
+	function _runUrl() {
+		if (!urls.length) {
+			return;
+		}
+
+		var url = urls.shift();
+
+		req(url, function(err, resp, body) {
+
+		});
+	}
+
+}
+
 var Daemon = (function _Daemon() {
 
-	var _rovers = process.env.ROVERS && process.env.ROVERS.split(',') || ['spirit', 'opportunity', 'msl'];
+	var _rovers = process.env.ROVERS && process.env.ROVERS.split(',') || ['msl'];
 
 	if (dbDriver.db) {
 		_rovers.forEach(function(name) {
 
-			var rover = _rover(name).parse();
+			var _rover = rover(name).run();
 
 			util.log('Processing %s images ...', name);
 		});
